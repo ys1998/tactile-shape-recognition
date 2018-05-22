@@ -1,0 +1,2 @@
+tactile_read.c:24:6:TR_Init	16	static
+tactile_read.c:34:7:TR_NextState	40	static
