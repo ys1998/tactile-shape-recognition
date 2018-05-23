@@ -21,10 +21,7 @@ extern ADC_HandleTypeDef hadc1;
 extern TR_HandleTypeDef htr;
 extern MAX_NUM_VALUES;
 
-uint8_t *debug_2;
-
 void TR_Init(TR_HandleTypeDef *tr){
-	debug_2 = calloc(1, sizeof(uint8_t));
 	tr->state = TR_SETUP;
 	tr->cache_read = true;
 	tr->stable_values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
@@ -83,7 +80,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			// Select two normal ADC channels
 			for(int i = 0; i < 2; ++i){
 				sConfig.Rank = i+1;
-				sConfig.SamplingTime = 0;
+				sConfig.SamplingTime = 7;
 				sConfig.Channel = row + 4*i;
 				// Configure ADC handle with the channel to be scanned
 				if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
@@ -93,13 +90,13 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			// Enable the multiplexor
 			HAL_GPIO_WritePin(GPIOB, 15, GPIO_PIN_SET);
 			// Select rows
-			HAL_GPIO_WritePin(GPIOB, 14, row/2 );
+			HAL_GPIO_WritePin(GPIOB, 14, (int)row/2 );
 			HAL_GPIO_WritePin(GPIOB, 13, row%2 );
 
 			// Select ADC8 and ADC9
 			for(int i = 8; i <= 9; ++i){
 				sConfig.Rank = i-5;
-				sConfig.SamplingTime = 0;
+				sConfig.SamplingTime = 7;
 				sConfig.Channel = i;
 				// Configure ADC handle with the channel to be scanned
 				if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
@@ -124,8 +121,6 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		}
 		break;
 	case TR_COMPLETED:
-		debug_2[0]=3;
-		CDC_Transmit_FS(debug_2, 1);
 		// All 64 values have been successfully read
 		tr->state = TR_SETUP;
 		tr->n_read = 0;

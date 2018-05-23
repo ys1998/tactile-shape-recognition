@@ -20,12 +20,7 @@ extern TR_HandleTypeDef htr;
 extern SpikeConv_HandleTypeDef hsc;
 extern MAX_NUM_VALUES;
 
-uint8_t *debug_3;
-
 void SpikeConv_Init(SpikeConv_HandleTypeDef *sc){
-	debug_3 = calloc(1, sizeof(uint8_t));
-	debug_3[0]=11;
-	CDC_Transmit_FS(debug_3, 1);
 	sc->state = SC_IDLE;
 	sc->spikeGenerated = false;
 	sc->values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
@@ -34,8 +29,6 @@ void SpikeConv_Init(SpikeConv_HandleTypeDef *sc){
 int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 	switch(sc->state) {
 	case SC_IDLE:
-		debug_3[0]=4;
-		CDC_Transmit_FS(debug_3, 1);
 		// State machine remains idle until the previous generated spike
 		// is successfully transmitted, and the Tactile Reader has read
 		// the next sensor data.
@@ -47,8 +40,6 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 		}
 		break;
 	case SC_BUSY:
-		debug_3[0]=5;
-		CDC_Transmit_FS(debug_3, 1);
 		/*
 		 * Spike encoding algorithm.
 		 * Currently, simply returns the same analog input.

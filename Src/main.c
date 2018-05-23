@@ -71,7 +71,6 @@ TR_HandleTypeDef htr;
 SpikeConv_HandleTypeDef hsc;
 USBComm_HandleTypeDef huc;
 extern USBD_HandleTypeDef hUsbDeviceFS;
-uint8_t *debug; // FOR DEBUGGING PURPOSE ONLY
 int MAX_NUM_VALUES = 64;
 
 
@@ -99,7 +98,7 @@ static void MX_GPIO_InitAnalog(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  debug = calloc(1, sizeof(uint8_t));
+
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -127,15 +126,11 @@ int main(void)
 
   MX_ADC1_Init();
   MX_USB_DEVICE_Init();
-  debug[0]=13;
-  CDC_Transmit_FS(debug, 1);
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
   /* Initialize custom handles */
-  debug[0]=13;
-  CDC_Transmit_FS(debug, 1);
   TR_Init(&htr);
   SpikeConv_Init(&hsc);
   USBComm_Init(&huc);
@@ -145,8 +140,6 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-  debug[0]=14;
-  CDC_Transmit_FS(debug, 1);
   TR_NextState(&htr);
   SpikeConv_NextState(&hsc);
   USBComm_NextState(&huc);
