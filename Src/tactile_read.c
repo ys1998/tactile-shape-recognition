@@ -37,13 +37,13 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		// Set 'col' pin LOW and others HIGH, so that there is non-zero
 		// potential difference between the reference voltage and 'col' pin
 		// and current flows through it.
-		for(int i = 0; i< 4; ++i){
+		for(int i = 0; i < 4; ++i){
 			if(i == col){
 				// Column to be read has to be grounded
-				HAL_GPIO_WritePin(GPIOB, 3+i, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, 6-i, GPIO_PIN_SET); //changes
 			}else{
 				// All other columns are set to HIGH
-				HAL_GPIO_WritePin(GPIOB, 3+i, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, 6-i, GPIO_PIN_RESET); //changes
 			}
 		}
 		tr->state = TR_BUSY;
@@ -53,7 +53,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		// converted into spikes and the 'curr_values' buffer is full.
 		if(tr->cache_read == true){
 			// copy 'curr_values' to 'stable_values'
-			memcpy(tr->stable_values, tr->curr_values, MAX_NUM_VALUES);
+			memcpy(tr->stable_values, tr->curr_values, 2 * MAX_NUM_VALUES);
 			tr->cache_read = false;
 			tr->state = TR_COMPLETED;
 		}
@@ -63,7 +63,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			/* When values from all sensors have been read */
 			if(tr->cache_read == true){
 				// stable values can be safely updated
-				memcpy(tr->stable_values, tr->curr_values, MAX_NUM_VALUES);
+				memcpy(tr->stable_values, tr->curr_values, 2 * MAX_NUM_VALUES);
 				tr->cache_read = false;
 				tr->state = TR_COMPLETED;
 			}else{
@@ -77,10 +77,10 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			ADC_ChannelConfTypeDef sConfig;
 
 			/* Configure 4 channels for polling */
+			sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
 			// Select two normal ADC channels
 			for(int i = 0; i < 2; ++i){
 				sConfig.Rank = i+1;
-				sConfig.SamplingTime = 7;
 				sConfig.Channel = row + 4*i;
 				// Configure ADC handle with the channel to be scanned
 				if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
@@ -90,13 +90,12 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			// Enable the multiplexor
 			HAL_GPIO_WritePin(GPIOB, 15, GPIO_PIN_SET);
 			// Select rows
-			HAL_GPIO_WritePin(GPIOB, 14, (int)row/2 );
+			HAL_GPIO_WritePin(GPIOB, 14, (int)(row/2) );
 			HAL_GPIO_WritePin(GPIOB, 13, row%2 );
 
 			// Select ADC8 and ADC9
 			for(int i = 8; i <= 9; ++i){
 				sConfig.Rank = i-5;
-				sConfig.SamplingTime = 7;
 				sConfig.Channel = i;
 				// Configure ADC handle with the channel to be scanned
 				if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
@@ -105,7 +104,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			}
 			// Sensor is being run in discontinuous mode and so needs to
 			// be restarted every time since it stops after 1 reading.
-			HAL_ADC_Start(&hadc1);
+//			HAL_ADC_Start(&hadc1);
 			// Read 4 sensor values
 			for(int i = 0; i < 4; ++i){
 				if(HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK){

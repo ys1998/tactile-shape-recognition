@@ -33,7 +33,7 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 		// is successfully transmitted, and the Tactile Reader has read
 		// the next sensor data.
 		if(!sc->spikeGenerated && !htr.cache_read){
-			memcpy(sc->values, htr.stable_values, MAX_NUM_VALUES);
+			memcpy(sc->values, htr.stable_values, 2 * MAX_NUM_VALUES);
 			// Change the flag of TactileReader's State Machine
 			htr.cache_read = true;
 			sc->state = SC_BUSY;
