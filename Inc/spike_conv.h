@@ -9,7 +9,6 @@
 #define INC_SPIKE_CONV_H_
 
 #include <stdbool.h>
-#include "abbr.h"
 /*
  * State declaration
  */
@@ -23,10 +22,8 @@ typedef struct {
 	SpikeConv_States state;
 	// boolean storing whether a spike has been generated
 	bool spikeGenerated;
-	// position of spike
-	uint8_t pos;
 	// 'value' of spike (currently analog, will be converted to 0-1 later)
-	uint16_t value;
+	uint16_t *values;
 } SpikeConv_HandleTypeDef;
 
 /*
@@ -36,6 +33,8 @@ typedef struct {
 // constructor
 void SpikeConv_Init(SpikeConv_HandleTypeDef*);
 // 'step' function for the state-machine
-Errno SpikeConv_NextState(SpikeConv_HandleTypeDef*);
+int SpikeConv_NextState(SpikeConv_HandleTypeDef*);
+// destructor
+void SpikeConv_Deinit(SpikeConv_HandleTypeDef*);
 
 #endif /* INC_SPIKE_CONV_H_ */

@@ -1,2 +1,3 @@
-spike_conv.c:23:6:SpikeConv_Init	16	static
-spike_conv.c:33:7:SpikeConv_NextState	16	static
+spike_conv.c:25:6:SpikeConv_Init	16	static
+spike_conv.c:34:5:SpikeConv_NextState	16	static
+spike_conv.c:67:6:SpikeConv_Deinit	16	static

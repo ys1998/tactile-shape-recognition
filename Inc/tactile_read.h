@@ -29,8 +29,8 @@ typedef struct {
 	uint16_t *stable_values;
 	// number of values read
 	uint8_t n_read;
-	// boolean denoting whether cache buffer has been filled
-	bool done;
+	// boolean denoting whether cache buffer has been read
+	bool cache_read;
 } TR_HandleTypeDef;
 
 /*
@@ -41,5 +41,7 @@ typedef struct {
 void TR_Init(TR_HandleTypeDef *htr);
 // 'step' function for the state-machine
 int TR_NextState(TR_HandleTypeDef *htr);
+// destructor
+void TR_Deinit(TR_HandleTypeDef *htr);
 
 #endif /* INC_TACTILE_READ_H_ */

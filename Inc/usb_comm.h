@@ -8,7 +8,6 @@
 #ifndef INC_USB_COMM_H_
 #define INC_USB_COMM_H_
 
-#include "abbr.h"
 /*
  * State declaration
  */
@@ -35,7 +34,7 @@ typedef struct {
 // constructor
 void USBComm_Init(USBComm_HandleTypeDef*);
 // 'step' function for the state-machine
-Errno USBComm_NextState(USBComm_HandleTypeDef*);
+int USBComm_NextState(USBComm_HandleTypeDef*);
 // destructor
 void USBComm_Deinit(USBComm_HandleTypeDef*);
 

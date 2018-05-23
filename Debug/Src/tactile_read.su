@@ -1,2 +1,3 @@
-tactile_read.c:24:6:TR_Init	16	static
-tactile_read.c:34:7:TR_NextState	40	static
+tactile_read.c:26:6:TR_Init	16	static
+tactile_read.c:35:5:TR_NextState	56	static
+tactile_read.c:140:6:TR_Deinit	16	static
