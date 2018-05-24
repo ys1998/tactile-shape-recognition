@@ -34,22 +34,22 @@ int TR_NextState(TR_HandleTypeDef *tr){
 	case TR_SETUP: ;
 		// Set 'col' to be read
 		uint8_t col = tr->n_read/4;
-		// Set 'col' pin LOW and others HIGH, so that there is non-zero
-		// potential difference between the reference voltage and 'col' pin
-		// and current flows through it.
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-//		for(int i = 0; i < 4; ++i){
-//			if(i == col){
-//				// Column to be read has to be grounded
-//				HAL_GPIO_WritePin(GPIOB, , GPIO_PIN_RESET);
-//			}else{
-//				// All other columns are set to HIGH
-//				HAL_GPIO_WritePin(GPIOB, 6-i, GPIO_PIN_SET);
-//			}
-//		}
+//		 Set 'col' pin LOW and others HIGH, so that there is non-zero
+//		 potential difference between the reference voltage and 'col' pin
+//		 and current flows through it.
+		for(int i = 0; i < 4; ++i){
+			if(i == col){
+				// Column to be read has to be grounded
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_RESET);
+			}else{
+				// All other columns are set to HIGH
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_SET);
+			}
+		}
+//		HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(GPIOB, 16, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(GPIOB, 32, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(GPIOB, 64, GPIO_PIN_SET);
 		tr->state = TR_BUSY;
 		break;
 	case TR_IDLE:
@@ -83,8 +83,8 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			ADC_ChannelConfTypeDef sConfig;
 
 			/* Configure 4 channels for polling */
-			sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
-			// Select ADC channels
+			sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;
+//			// Select ADC channels
 //			for(int i = 0; i < 4; ++i){
 //				sConfig.Rank = i+1;
 //				sConfig.Channel = i;
@@ -99,20 +99,23 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
 				_Error_Handler(__FILE__, __LINE__);
 			}
-			if(HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK){
-				tr->curr_values[tr->n_read] = HAL_ADC_GetValue(&hadc1);
-			}
+//			HAL_Delay(1);
+//			for(int i = 0; i < 4; ++i){
+			while(HAL_ADC_PollForConversion(&hadc1, 1000) != HAL_OK);
+			tr->curr_values[tr->n_read] = HAL_ADC_GetValue(&hadc1);
+//			}
+
 			// Update the number of values read
 			tr->n_read += 1;
 			// Transit to the SETUP state when column needs to be changed
 			if(tr->n_read % 4 == 0 && tr->n_read < MAX_NUM_VALUES){
-				tr->state = TR_BUSY;
+				tr->state = TR_SETUP;
 			}
 		}
 		break;
 	case TR_COMPLETED:
 		// All 64 values have been successfully read
-		tr->state = TR_BUSY;
+		tr->state = TR_SETUP;
 		tr->n_read = 0;
 		break;
 	default:

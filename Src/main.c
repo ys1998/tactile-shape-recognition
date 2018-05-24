@@ -131,26 +131,42 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
   /* Initialize custom handles */
-//  TR_Init(&htr);
-//  SpikeConv_Init(&hsc);
-//  USBComm_Init(&huc);
+  TR_Init(&htr);
+  SpikeConv_Init(&hsc);
+  USBComm_Init(&huc);
 
-//  HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start(&hadc1);
   while (1)
   {
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-//  TR_NextState(&htr);
-//  SpikeConv_NextState(&hsc);
-//  USBComm_NextState(&huc);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+  TR_NextState(&htr);
+  SpikeConv_NextState(&hsc);
+  USBComm_NextState(&huc);
+//	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
 //	HAL_Delay(1000);
 //	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
-//	HAL_Delay(1000);
+//	HAL_Delay(100);
+//	if(HAL_ADC_PollForConversion(&hadc1, 1000) != HAL_OK){
+//		//
+//	}else{
+//		uint8_t buff[4];
+//		uint16_t temp = HAL_ADC_GetValue(&hadc1);
+//		buff[2] = temp>>8;//temp % 256;
+//		buff[1] = temp&0xff;//temp / 256;
+//		buff[0]=1;
+//		buff[3]=2;
+//
+//		CDC_Transmit_FS(buff, 4);
+//	}
+
+
   }
   /* USER CODE END 3 */
   USBComm_Deinit(&huc);
+  TR_Deinit(&htr);
+  SpikeConv_Deinit(&hsc);
   return 0;
 }
 
@@ -227,19 +243,43 @@ static void MX_ADC1_Init(void)
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
 	hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-	hadc1.Init.NbrOfConversion = 4;
+	hadc1.Init.NbrOfConversion = 1;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK){
 		_Error_Handler(__FILE__, __LINE__);
 	}
 
 	/**Configure Regular Channel
 	*/
+//	sConfig.Channel = ADC_CHANNEL_0;
+//	sConfig.Rank = ADC_REGULAR_RANK_1;
+//	sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
+//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+//		_Error_Handler(__FILE__, __LINE__);
+//	}
+	sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;
+	sConfig.Rank = 1;
 	sConfig.Channel = ADC_CHANNEL_0;
-	sConfig.Rank = ADC_REGULAR_RANK_1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
 		_Error_Handler(__FILE__, __LINE__);
 	}
+
+//	sConfig.Rank = 2;
+//	sConfig.Channel = ADC_CHANNEL_1;
+//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+//		_Error_Handler(__FILE__, __LINE__);
+//	}
+//
+//	sConfig.Rank = 3;
+//	sConfig.Channel = ADC_CHANNEL_2;
+//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+//		_Error_Handler(__FILE__, __LINE__);
+//	}
+//
+//	sConfig.Rank = 4;
+//	sConfig.Channel = ADC_CHANNEL_3;
+//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+//		_Error_Handler(__FILE__, __LINE__);
+//	}
 
 }
 
@@ -274,7 +314,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : PB13 PB14 PB15 PB3 
                            PB4 PB5 PB6 */
   GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_3 
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
