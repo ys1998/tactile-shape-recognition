@@ -40,10 +40,10 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		for(int i = 0; i < 4; ++i){
 			if(i == col){
 				// Column to be read has to be grounded
-				HAL_GPIO_WritePin(GPIOB, 6-i, GPIO_PIN_SET); //changes
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_SET);
 			}else{
 				// All other columns are set to HIGH
-				HAL_GPIO_WritePin(GPIOB, 6-i, GPIO_PIN_RESET); //changes
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_RESET);
 			}
 		}
 		tr->state = TR_BUSY;
@@ -53,7 +53,9 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		// converted into spikes and the 'curr_values' buffer is full.
 		if(tr->cache_read == true){
 			// copy 'curr_values' to 'stable_values'
+			memset(tr->stable_values, 0, 2 * MAX_NUM_VALUES);
 			memcpy(tr->stable_values, tr->curr_values, 2 * MAX_NUM_VALUES);
+			memset(tr->curr_values, 0, 2 * MAX_NUM_VALUES);
 			tr->cache_read = false;
 			tr->state = TR_COMPLETED;
 		}
@@ -63,7 +65,9 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			/* When values from all sensors have been read */
 			if(tr->cache_read == true){
 				// stable values can be safely updated
+				memset(tr->stable_values, 0, 2 * MAX_NUM_VALUES);
 				memcpy(tr->stable_values, tr->curr_values, 2 * MAX_NUM_VALUES);
+				memset(tr->curr_values, 0, 2 * MAX_NUM_VALUES);
 				tr->cache_read = false;
 				tr->state = TR_COMPLETED;
 			}else{
@@ -77,7 +81,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			ADC_ChannelConfTypeDef sConfig;
 
 			/* Configure 4 channels for polling */
-			sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
+			sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;
 			// Select two normal ADC channels
 			for(int i = 0; i < 2; ++i){
 				sConfig.Rank = i+1;
@@ -88,10 +92,10 @@ int TR_NextState(TR_HandleTypeDef *tr){
 				}
 			}
 			// Enable the multiplexor
-			HAL_GPIO_WritePin(GPIOB, 15, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
 			// Select rows
-			HAL_GPIO_WritePin(GPIOB, 14, (int)(row/2) );
-			HAL_GPIO_WritePin(GPIOB, 13, row%2 );
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, (int)(row/2) );
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, row%2 );
 
 			// Select ADC8 and ADC9
 			for(int i = 8; i <= 9; ++i){
