@@ -23,27 +23,27 @@
    <widget class="QPushButton" name="startButton">
     <property name="geometry">
      <rect>
-      <x>550</x>
-      <y>120</y>
-      <width>111</width>
+      <x>560</x>
+      <y>10</y>
+      <width>101</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>START</string>
+     <string>Start</string>
     </property>
    </widget>
    <widget class="QPushButton" name="stopButton">
     <property name="geometry">
      <rect>
-      <x>550</x>
-      <y>160</y>
-      <width>111</width>
+      <x>560</x>
+      <y>50</y>
+      <width>101</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>STOP</string>
+     <string>Pause</string>
     </property>
    </widget>
    <widget class="GraphicsLayoutWidget" name="patchHigh1">
@@ -254,9 +254,9 @@ background-color: rgb(3, 3, 3);</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>10</y>
+      <y>20</y>
       <width>171</width>
-      <height>41</height>
+      <height>21</height>
      </rect>
     </property>
     <property name="font">
@@ -265,7 +265,7 @@ background-color: rgb(3, 3, 3);</string>
      </font>
     </property>
     <property name="text">
-     <string>High Sensitivity</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;High&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_2">
@@ -283,7 +283,7 @@ background-color: rgb(3, 3, 3);</string>
      </font>
     </property>
     <property name="text">
-     <string>Medium Sensitivity</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Medium&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_3">
@@ -301,7 +301,59 @@ background-color: rgb(3, 3, 3);</string>
      </font>
     </property>
     <property name="text">
-     <string> Low Sensitivity</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Low&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="readButton">
+    <property name="geometry">
+     <rect>
+      <x>560</x>
+      <y>110</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>File</string>
+    </property>
+   </widget>
+   <widget class="Line" name="line">
+    <property name="geometry">
+     <rect>
+      <x>540</x>
+      <y>0</y>
+      <width>20</width>
+      <height>701</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
+   <widget class="Line" name="line_2">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>90</y>
+      <width>131</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="toggleRead">
+    <property name="geometry">
+     <rect>
+      <x>560</x>
+      <y>150</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Read</string>
     </property>
    </widget>
   </widget>

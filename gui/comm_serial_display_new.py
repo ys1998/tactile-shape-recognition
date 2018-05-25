@@ -25,7 +25,7 @@ Ui_MainWindow, QMainWindow = loadUiType('interface_vertical.ui')
 #               ii) another for updating the Interface using this data.
 
 # Identifying the Micro Controller 
-ser = serial.Serial("/dev/ttyACM0",7372800)
+ser = serial.Serial("/dev/tty10",7372800)
 ser.flushInput()
 ser.flushOutput()
 
@@ -106,6 +106,12 @@ class Main(QMainWindow,Ui_MainWindow) :
         # Thread which updates the plot based on received data from Micro Controller
         #self.thr = ThreadHandler(self.processData)
         self.thr = threading.Thread(target = self.processData)
+
+        # Variables to store file path and read state
+        self.read = False
+        self.filepath = None
+        self.file = None
+
         print("Intitialisation")
         self.init()
     # init() Contains other initialisations
@@ -177,9 +183,11 @@ class Main(QMainWindow,Ui_MainWindow) :
 
         #self.currImageHigh1.view.setAspectLocked(False)
 
-        # Functions of Start and Stop buttons
+        # Functions of Start, Stop, File and Read buttons
         self.startButton.clicked.connect(self.doStart)
         self.stopButton.clicked.connect(self.doStop)
+        self.readButton.clicked.connect(self.doRead)
+        self.toggleRead.clicked.connect(self.toggle_read)
 
     def doStart(self) :
         # starting the thread to update the Interface
@@ -207,6 +215,20 @@ class Main(QMainWindow,Ui_MainWindow) :
             print("Press Ctrl+C to exit")
             #sys.exit(0)
 
+    def doRead(self):
+        # Function to start reading received data into specified file
+        self.filepath = QtWidgets.QFileDialog.getSaveFileName()[0]
+        print("Saving data to %s"%(self.filepath))
+    
+    def toggle_read(self):
+        # Function to toggle read functionality
+        if self.read:
+            self.read = False
+            self.toggleRead.setText("Resume")
+        else:
+            self.read = True
+            self.toggleRead.setText("Pause")
+
     def updateRGB(self,pos) :
         global dataQueue
         patchNum = pos//16
@@ -214,6 +236,8 @@ class Main(QMainWindow,Ui_MainWindow) :
         col = (pos%16)%4
         for sense in range(3) :
             iVal = scaleVal(dataQueue[patchNum][col][row],sense)
+            if self.file is not None:
+                self.file.write("{0}\t{1}\t{2}\t{3}\n".format(patchNum, row, col, dataQueue[patchNum][col][row]))
             self.intensityData[sense][patchNum][row][col][0] = max(0,2*iVal-255)
             self.intensityData[sense][patchNum][row][col][2] = max(0,255-2*iVal)
             self.intensityData[sense][patchNum][row][col][1] = 255-max(0,255-2*iVal)-max(0,2*iVal-255)
@@ -222,11 +246,19 @@ class Main(QMainWindow,Ui_MainWindow) :
     # The function to update the Interface in real time. This function is ran in a thread.
     def processData(self) :
         global update,dataQueue
+        if self.filepath is not None:
+            try:
+                self.file = open(self.filepath, 'w')
+            except Exception as e:
+                print("Invalid file!")
+                self.read = False
+                self.file = None
+        
         while True :
             if self.stop == 0 :
                 if update == 1 : 
                     for pos in range(64) :
-                        self.updateRGB(pos)    
+                        self.updateRGB(pos)   
                     update = 0
                     #print(self.intensityData)
                     for patchNum in range(4) :
@@ -264,5 +296,9 @@ if __name__ == '__main__':
     main = Main()
     main.show()
 
-    sys.exit(app.exec_())
-    recvThread.join(0)
+    app.exec_()
+    if main.file is not None:
+        main.file.close()
+
+    # recvThread.join(0)
+    sys.exit(0)
