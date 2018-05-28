@@ -27,6 +27,7 @@ void TR_Init(TR_HandleTypeDef *tr){
 	tr->stable_values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
 	tr->curr_values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
 	tr->n_read = 0;
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 }
 
 int TR_NextState(TR_HandleTypeDef *tr){
@@ -40,10 +41,10 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		for(int i = 0; i < 4; ++i){
 			if(i == col){
 				// Column to be read has to be grounded
-				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_RESET);
 			}else{
 				// All other columns are set to HIGH
-				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, 1<<(3+i), GPIO_PIN_SET);
 			}
 		}
 		tr->state = TR_BUSY;
@@ -127,8 +128,11 @@ int TR_NextState(TR_HandleTypeDef *tr){
 		break;
 	case TR_COMPLETED:
 		// All 64 values have been successfully read
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
 		tr->state = TR_SETUP;
 		tr->n_read = 0;
+		HAL_Delay(1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 		break;
 	default:
 		// this state should never be reached
