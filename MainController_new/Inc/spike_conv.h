@@ -22,8 +22,14 @@ typedef struct {
 	SpikeConv_States state;
 	// boolean storing whether a spike has been generated
 	bool spikeGenerated;
-	// 'value' of spike (currently analog, will be converted to 0-1 later)
+	// current analog values
 	uint16_t *values;
+	// current analog values
+	uint16_t *prev_values;
+	// current analog values
+	uint16_t *acc_changes;
+	// spike activity
+	uint64_t *spikes;
 } SpikeConv_HandleTypeDef;
 
 /*

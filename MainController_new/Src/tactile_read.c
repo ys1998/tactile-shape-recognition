@@ -82,7 +82,7 @@ int TR_NextState(TR_HandleTypeDef *tr){
 			uint8_t row = (tr->n_read % 16)/4;
 
 			ADC_ChannelConfTypeDef sConfig;
-			sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;
+			sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;
 			sConfig.Rank = 1;
 
 			/* Configure channel for polling */
