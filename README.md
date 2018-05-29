@@ -1,4 +1,7 @@
-![nus-logo](images/nus.jpg) ![sinapse-logo](images/sinapse.png)
+<span>
+<img src="images/nus.jpg" style="height: 100px;"/>
+<img src="images/sinapse.png" style="height: 100px;"/>
+</span>
 # 3D Shape Recognition for Neuromorphic Tactile Sensing
 This repository contains the code for my project at SINAPSE, National University of Singapore during May-July 2018 as a part of my research internship under the guidance of Prof. Alcimar Soares.
 
