@@ -70,6 +70,8 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 			}
 		}
 
+		// Copy current values to prev_values for next iteration
+		memcpy(sc->prev_values, sc->values, 2 * MAX_NUM_VALUES);
 		sc->spikeGenerated = true;
 		sc->state = SC_IDLE;
 		break;
