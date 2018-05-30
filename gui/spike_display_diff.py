@@ -30,8 +30,16 @@ ser.flushInput()
 ser.flushOutput()
 
 # Stores data from the Micro Controller
-dataQueue = np.zeros((4,4,4))
+rawQueue = deque([])
+
+# Control variable to pause or resume receiving
+receiveControl = 0
+# processed intensity data in scale 0 to (4096)
+dataQueue = np.full((4,4,4),450)
+spikeEvent = np.full((4,4,4),125)
+# Control variable for updating the interface
 update = 0
+updateControl = 0
 
 # Functions to scale the intensity values to color values based on required sensitivity
 def scaleVal(ival,sense) :
@@ -63,32 +71,57 @@ def send(data) :
         print("wrote data :",data[i])
 
 def receive() :
-    global dataQueue,ser,update,receiveControl
+    global ser,receiveControl,rawQueue
     while True :
         if receiveControl == 1 :
             waiting = ser.inWaiting()
-            if waiting >= 130 :
-                rawQueue = [x for x in ser.read(waiting)]
-                endByte = len(rawQueue)-1
-                #print(endByte,waiting)
-                while rawQueue[endByte] != 2 and endByte > 0 :
-                    endByte = endByte-1
-                if endByte < 129 :
-                    continue
-                if rawQueue[endByte-129] == 1 :
-                    recvQueue = np.zeros(64)
-                    for i in range(64) :
-                        patchNum = i//16
-                        row = (i%16)//4
-                        col = (i%16)%4
-                        pos = patchNum + 4*row + 16*col
-                        posInRaw = 2*pos+endByte-128
-                        dataQueue[patchNum][col][row] = 4096-(rawQueue[posInRaw]+rawQueue[posInRaw+1]*256)
-                        #recvQueue[i] = rawQueue[2*i+endByte-128]*256+rawQueue[2*i+endByte-127]
-                    update = 1
-                    #print("Received packet : ",dataQueue[0])
-                    #print("Raw Packet : ",rawQueue[endByte-129:endByte+1])
-        
+            if waiting >= 0 :
+                for x in ser.read(waiting) :
+                    rawQueue.append(x)
+                #print(rawQueue)
+        time.sleep(0.0001)
+
+def updateDataQueue() :
+    global dataQueue,rawQueue,update,updateControl
+    while True :
+        if len(rawQueue) >= 18 and updateControl == 1 :
+            packet = [rawQueue.popleft() for i in range(18)][1:17]
+            #print(packet)
+            negPacket = packet[0:8]
+            posPacket = packet[8:16]
+            pos = 0
+            for i in range(8) :
+                bitstr = "{0:b}".format(posPacket[7-i])
+                bitstr = "0"*(8-len(bitstr)) + bitstr
+                for j in range(8) :
+                    patchNum = pos%4
+                    row = (pos%16)//4
+                    col = pos//16
+                    if bitstr[7-j] == "1" :
+                        dataQueue[patchNum][row][col] = min(4000,dataQueue[patchNum][row][col] + 100)
+                        spikeEvent[patchNum][row][col] = 0
+                        print("Positive Spike")
+                    else :
+                        spikeEvent[patchNum][row][col] = 125
+                    pos = pos + 1
+            pos = 0
+            for i in range(8) :
+                bitstr = "{0:b}".format(negPacket[7-i])
+                bitstr = "0"*(8-len(bitstr)) + bitstr
+                for j in range(8) :
+                    patchNum = pos%4
+                    row = (pos%16)//4
+                    col = pos//16
+                    if bitstr[7-j] == "1" :
+                        dataQueue[patchNum][row][col] = max(450,dataQueue[patchNum][row][col] - 100)
+                        spikeEvent[patchNum][row][col] = 250
+                        print("Negative Spike")
+                    else :
+                        spikeEvent[patchNum][row][col] = 125
+                        #print("No Spike")
+                    pos = pos + 1
+            update = 1
+        time.sleep(0.0001)
 
 # Class for Interface
 class Main(QMainWindow,Ui_MainWindow) :
@@ -191,27 +224,31 @@ class Main(QMainWindow,Ui_MainWindow) :
 
     def doStart(self) :
         # starting the thread to update the Interface
-        global recvThread,ser,receiveControl
+        global recvThread,ser,receiveControl,updateThread,updateControl
         if self.start == 0 :
             ser.flushInput()
             self.start = 1
             self.stop = 0
             self.thr.start()
-            recvThread.start()
             print("Started")
+            recvThread.start()
+            updateThread.start()
             receiveControl = 1
+            updateControl = 1
         if self.stop == 1 :
             print("Started Again")
             self.stop = 0
             receiveControl = 1
+            updateControl = 1
 
     def doStop(self) :
         # stop the thread which updates the Interface
-        global recvThread,receiveControl
+        global recvThread,receiveControl,updateControl
         if self.stop == 0 :
             print("Stopped")
             self.stop = 1
             receiveControl = 0
+            updateControl = 0
             print("Press Ctrl+C to exit")
             #sys.exit(0)
 
@@ -221,7 +258,7 @@ class Main(QMainWindow,Ui_MainWindow) :
         row = (pos%16)//4
         col = (pos%16)%4
         for sense in range(3) :
-            iVal = scaleVal(dataQueue[patchNum][col][row],sense)
+            iVal = spikeEvent[patchNum][row][col]
             self.intensityData[sense][patchNum][row][col][0] = max(0,2*iVal-255)
             self.intensityData[sense][patchNum][row][col][2] = max(0,255-2*iVal)
             self.intensityData[sense][patchNum][row][col][1] = 255-max(0,255-2*iVal)-max(0,2*iVal-255)
@@ -233,36 +270,40 @@ class Main(QMainWindow,Ui_MainWindow) :
         while True :
             #print(self.stop)
             if self.stop == 0 and update == 1 :
+                #print(dataQueue)
                 for pos in range(64) :
                     self.updateRGB(pos)    
                 update = 0
-                #print("Updating color maps")
-                time.sleep(0.005)
+                
+                #time.sleep(0.005)
                 for patchNum in range(4) :
                     if patchNum == 0 :
                         self.currImageMed1.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh1.setImage(self.intensityData[2][patchNum],levels=(0,255))
                         self.currImageLow1.setImage(self.intensityData[0][patchNum],levels=(0,255))
+                        #print("Updating color maps")
                         #print(self.intensityData[0][0],self.intensityData[1][0],self.intensityData[2][0])
                     elif patchNum == 1 :
                         self.currImageLow2.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed2.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh2.setImage(self.intensityData[2][patchNum],levels=(0,255))
+                        #print(self.intensityData[0][1],self.intensityData[1][1],self.intensityData[2][1])
                     elif patchNum == 2 :
                         self.currImageLow3.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed3.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh3.setImage(self.intensityData[2][patchNum],levels=(0,255))
+                        #print(self.intensityData[0][2],self.intensityData[1][2],self.intensityData[2][2])
                     elif patchNum == 3 :
                         self.currImageLow4.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed4.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh4.setImage(self.intensityData[2][patchNum],levels=(0,255))
-                time.sleep(0.01)
+            time.sleep(0.001)
         #print(self.intensityData[0])
 
 
 # Thread to receive data
-receiveControl = 0
 recvThread = threading.Thread(target = receive)
+updateThread = threading.Thread(target = updateDataQueue)
 #recvThread = ThreadHandler(receive)
 
 # Parallely update the display based on received data. The class for interface( Main )

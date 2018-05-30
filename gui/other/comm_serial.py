@@ -24,10 +24,34 @@ def receive() :
 	global dataQueue,ser
 	#global st,end
 	while True :
-		if ser.inWaiting() >= 34 :
-			currQueue = [x for x in ser.read(34)]
-			print(currQueue)
-			#time.sleep(1)
+		waiting = ser.inWaiting()
+		if waiting >= 130 :
+			rawQueue = [x for x in ser.read(waiting)]
+			endByte = len(rawQueue)-1
+			#print(endByte,waiting)
+			while rawQueue[endByte] != 2 and endByte > 0 :
+				endByte = endByte-1
+			if endByte < 129 :
+				continue
+			if rawQueue[endByte-129] == 1 :
+				currQueue = rawQueue[endByte-129:endByte+1]
+				newQueue = np.zeros(64)
+				for i in range(64) :
+					dataQueue[i] = 4096 - (currQueue[2*i+1] + currQueue[2*i+2]*256)
+				for i in range(64) :
+					patchNum = i//16
+					row = (i%16)//4
+					col = (i%16)%4
+					pos = patchNum + 4*row + 16*col
+					newQueue[i] = dataQueue[pos]
+				#print(" START ")
+				#print(newQueue[0:16])
+				#print(newQueue[16:32])
+				#print(newQueue[32:48])
+				#print(newQueue[48:64])
+				#print(" END ")
+				print(rawQueue)
+				time.sleep(1)
 	#end = time.time()
 	#sprint(end-st)
 print("Started : ")
