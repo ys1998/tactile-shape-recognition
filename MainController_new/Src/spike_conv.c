@@ -37,6 +37,7 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 		// is successfully transmitted, and the Tactile Reader has read
 		// the next sensor data.
 		if(!sc->spikeGenerated && !htr.cache_read){
+			memset(sc->values, 0, 2 * MAX_NUM_VALUES);
 			memcpy(sc->values, htr.stable_values, 2 * MAX_NUM_VALUES);
 			// Reset the spike information
 			memset(sc->spikes, 0, 2 * sizeof(uint64_t));
@@ -55,7 +56,7 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 			if(sc->values[i] - sc->prev_values[i] > THRESHOLD){
 				sc->spikes[0] = sc->spikes[0] | 1<<i;
 				sc->acc_changes[i] = 0;
-			}else if(sc->values[i] - sc->prev_values[i] < -THRESHOLD){
+			}else if(sc->prev_values[i] - sc->values[i] > THRESHOLD){
 				sc->spikes[1] = sc->spikes[1] | 1<<i;
 				sc->acc_changes[i] = 0;
 			}else{
@@ -63,7 +64,7 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 				if(sc->acc_changes[i] > THRESHOLD){
 					sc->spikes[0] = sc->spikes[0] | 1<<i;
 					sc->acc_changes[i] = 0;
-				}else if(sc->acc_changes[i] < -THRESHOLD){
+				}else if(sc->acc_changes[i] < -1 * THRESHOLD){
 					sc->spikes[1] = sc->spikes[1] | 1<<i;
 					sc->acc_changes[i] = 0;
 				}
@@ -71,6 +72,7 @@ int SpikeConv_NextState(SpikeConv_HandleTypeDef *sc){
 		}
 
 		// Copy current values to prev_values for next iteration
+		memset(sc->prev_values, 0, 2 * MAX_NUM_VALUES);
 		memcpy(sc->prev_values, sc->values, 2 * MAX_NUM_VALUES);
 		sc->spikeGenerated = true;
 		sc->state = SC_IDLE;
