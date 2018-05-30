@@ -27,7 +27,7 @@ typedef struct {
 	// current analog values
 	uint16_t *prev_values;
 	// current analog values
-	uint16_t *acc_changes;
+	int16_t *acc_changes;
 	// spike activity
 	uint64_t *spikes;
 } SpikeConv_HandleTypeDef;

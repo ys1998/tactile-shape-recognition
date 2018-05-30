@@ -25,7 +25,7 @@ void SpikeConv_Init(SpikeConv_HandleTypeDef *sc){
 	sc->state = SC_IDLE;
 	sc->spikeGenerated = false;
 	sc->values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
-	sc->acc_changes = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
+	sc->acc_changes = calloc(MAX_NUM_VALUES, sizeof(int16_t));
 	sc->prev_values = calloc(MAX_NUM_VALUES, sizeof(uint16_t));
 	sc->spikes = calloc(2, sizeof(uint64_t));
 }
