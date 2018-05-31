@@ -19,27 +19,43 @@ from threadhandler import ThreadHandler
 
 Ui_MainWindow, QMainWindow = loadUiType('interface_vertical.ui')
 
-
-##### The code runs two threads 
-#               i) one for receiving data from the Microcontroller
-#               ii) another for updating the Interface using this data.
+"""
+The code runs on three threads 
+    i) for continuously receiving data from the microcontroller 
+    ii) for processing the received data
+    ii) for updating the interface using this data
+"""
 
 # Identifying the Micro Controller 
 ser = serial.Serial("/dev/ttyACM0",7372800)
 ser.flushInput()
 ser.flushOutput()
 
-# Stores data from the Micro Controller
+"""
+Stores data from the microcontroller as a 'deque' of bytes.
+Packet format:
+    [1 (start byte)]
+    [8 bytes for negative spike information]
+    [8 bytes for positive spike information]
+    [2 (end byte)]
+"""
 rawQueue = deque([])
 
 # Control variable to pause or resume receiving
 receiveControl = 0
-# processed intensity data in scale 0 to (4096)
-dataQueue = np.full((4,4,4),450)
-spikeEvent = np.full((4,4,4),125)
+# Spike activity (1 - positive, -1 - negative, 0 - none)
+spikeEvent = np.full((4,4,4), 0)
 # Control variable for updating the interface
 update = 0
 updateControl = 0
+
+# Variable to store timestep count
+TIME = 0
+
+# File writing variables
+FILENAME = None
+FILE = None
+WRITE = False
 
 # Functions to scale the intensity values to color values based on required sensitivity
 def scaleVal(ival,sense) :
@@ -56,17 +72,17 @@ def scaleVal(ival,sense) :
         Vcurrent = voltageMed
     if sense == 0 :
         Vcurrent = voltageLow
-    Vread = 3.3*(1-ival/4096)
+    Vread = VCC*(1-ival/4096)
     colorValue =  min(255,int((voltageMax-Vread)*256/(voltageMax-Vcurrent)))
     return colorValue
 
 
-# Functions to send and receive data from Micro Controller 
+# Functions to send and receive data from microcontroller 
 def send(data) :
     global ser
     length = len(data)
+    print("writing")
     for i in range(length) :
-        print("writing")
         ser.write((data[i]+"\r\n").encode('ascii'))
         print("wrote data :",data[i])
 
@@ -76,83 +92,90 @@ def receive() :
         if receiveControl == 1 :
             waiting = ser.inWaiting()
             if waiting >= 0 :
-                for x in ser.read(waiting) :
-                    rawQueue.append(x)
-                #print(rawQueue)
+                rawQueue.extend(ser.read(waiting))
         time.sleep(0.0001)
 
 def updateDataQueue() :
-    global dataQueue,rawQueue,update,updateControl
-    while True :
+    global rawQueue, update, updateControl, TIME
+    global WRITE, FILE
+    while True:
         if len(rawQueue) >= 18 and updateControl == 1 :
+            TIME += 1
             packet = [rawQueue.popleft() for i in range(18)][1:17]
-            #print(packet)
             negPacket = packet[0:8]
             posPacket = packet[8:16]
-            pos = 0
-            for i in range(8) :
-                bitstr = "{0:b}".format(posPacket[7-i])
-                bitstr = "0"*(8-len(bitstr)) + bitstr
-                for j in range(8) :
-                    patchNum = pos%4
-                    row = (pos%16)//4
-                    col = pos//16
-                    if bitstr[7-j] == "1" :
-                        dataQueue[patchNum][row][col] = min(4000,dataQueue[patchNum][row][col] + 100)
+
+            # Convert 8 bytes to one 64 bit number
+            positive_spikes = posPacket[0]
+            negative_spikes = negPacket[0]
+            for i in range(1, 8):
+                positive_spikes = positive_spikes << 8 | posPacket[i]
+                negative_spikes = negative_spikes << 8 | negPacket[i]
+            
+            # Iterate over the 64 positions
+            for i in range(64):
+                posVal = (positive_spikes & 1<<i) >> i
+                negVal = (negative_spikes & 1<<i) >> i
+
+                patchNum = i % 4
+                row = (i % 16)//4
+                col = i//16
+
+                if posVal == 1:
+                    # Positive Spike
+                    spikeEvent[patchNum][row][col] = 1                    
+                    if WRITE and FILE is not None:
+                        # write spike data to the file
+                        FILE.write("{0} {1} {2} {3} {4}\n".format(patchNum, row, col, 1, TIME))
+                else :
+                    if negVal == 1:
+                        # Negative Spike
+                        spikeEvent[patchNum][row][col] = -1                        
+                        if WRITE and FILE is not None:
+                            # write spike data to the file
+                            FILE.write("{0} {1} {2} {3} {4}\n".format(patchNum, row, col, -1, TIME))
+                    else :
+                        # No Spike
                         spikeEvent[patchNum][row][col] = 0
-                        print("Positive Spike")
-                    else :
-                        spikeEvent[patchNum][row][col] = 125
-                    pos = pos + 1
-            pos = 0
-            for i in range(8) :
-                bitstr = "{0:b}".format(negPacket[7-i])
-                bitstr = "0"*(8-len(bitstr)) + bitstr
-                for j in range(8) :
-                    patchNum = pos%4
-                    row = (pos%16)//4
-                    col = pos//16
-                    if bitstr[7-j] == "1" :
-                        dataQueue[patchNum][row][col] = max(450,dataQueue[patchNum][row][col] - 100)
-                        spikeEvent[patchNum][row][col] = 250
-                        print("Negative Spike")
-                    else :
-                        spikeEvent[patchNum][row][col] = 125
-                        #print("No Spike")
-                    pos = pos + 1
+                        # Nothing written in case of no spike event               
             update = 1
-        time.sleep(0.0001)
+        time.sleep(0.001)
 
 # Class for Interface
 class Main(QMainWindow,Ui_MainWindow) :
     def __init__(self):
         super(Main,self).__init__()
         self.setupUi(self)
-        # IntnesityData : Array to store data to be displayed on Interface
+
+        """
+        Array to store data to be displayed on the interface.
+        Three levels of sensitivity are displayed for each patch
+            (1) High sensitivity (2.5V - 3V)
+            (2) Medium sensitivity (2V - 3V)
+            (3) Low sensitivity (1.5V - 3V)
+        """
         self.intensityData = []
         for k in range(3) :
             self.intensityData.append([])
             for i in range(4) :
+                # Interface initialized to black
                 self.intensityData[k].append(np.full((4,4,3),0))
-        # Two variables to avoid mutliple starting and stopping of thread
+        
+        # Two variables to avoid multiple starting and stopping of thread
         self.start = 0
         self.stop = 0
-        # initialise Interface to blue
-        for sense in range(3) :
-            for i in range(4) :
-                for j in range(4) :
-                    for k in range(4) :
-                        self.intensityData[sense][i][j][k][2] = 255
-        # Thread which updates the plot based on received data from Micro Controller
-        #self.thr = ThreadHandler(self.processData)
+
+        # Thread which updates the plot based on data received from microcontroller
         self.thr = threading.Thread(target = self.processData)
-        print("Intitialisation")
+
+        print("Intitialising ... ", end='')
         self.init()
-    # init() Contains other initialisations
+        print("Done.")
+
+    # Function for initialising interface and callbacks
     def init(self) :
-        print("Adding ViewBoxes")
+        print("Adding view-boxes ... ", end='')
         # displays are the viewboxes (one for each patch of tactile sensors)
-        #self.patchHigh1.setContentsMargins(0,0,0,0)
         self.displayLow1 = self.patchLow1.addViewBox()
         self.displayLow2 = self.patchLow2.addViewBox()
         self.displayLow3 = self.patchLow3.addViewBox()
@@ -167,8 +190,6 @@ class Main(QMainWindow,Ui_MainWindow) :
         self.displayHigh2 = self.patchHigh2.addViewBox()
         self.displayHigh3 = self.patchHigh3.addViewBox()
         self.displayHigh4 = self.patchHigh4.addViewBox() 
-
-        #self.displayHigh1.setAspectLocked(True)
         
         self.displayHigh1.setRange(xRange = [0,4],yRange = [0,4])
         self.displayHigh2.setRange(xRange = [0,4],yRange = [0,4])
@@ -184,9 +205,6 @@ class Main(QMainWindow,Ui_MainWindow) :
         self.displayMed2.setRange(xRange = [0,4],yRange = [0,4])
         self.displayMed3.setRange(xRange = [0,4],yRange = [0,4])
         self.displayMed4.setRange(xRange = [0,4],yRange = [0,4])
-
-        #self.displayHigh1.enableAutoRange(self.displayHigh1.XYAxes)
-        #print(self.displayHigh1.viewRange())
 
         # Image items to be displayed on the viewboxes
         self.currImageLow1 = pg.ImageItem(self.intensityData[0][0])
@@ -216,15 +234,17 @@ class Main(QMainWindow,Ui_MainWindow) :
         self.currImageHigh4 = pg.ImageItem(self.intensityData[2][3])
         self.displayHigh4.addItem(self.currImageHigh4)
 
-        #self.currImageHigh1.view.setAspectLocked(False)
-
-        # Functions of Start and Stop buttons
+        # Callback functions for Start, Pause, File and Read buttons
         self.startButton.clicked.connect(self.doStart)
         self.stopButton.clicked.connect(self.doStop)
+        self.readButton.clicked.connect(self.doRead)
+        self.chooseButton.clicked.connect(self.chooseFile)
+
+        print("Done.")
 
     def doStart(self) :
-        # starting the thread to update the Interface
-        global recvThread,ser,receiveControl,updateThread,updateControl
+        # starting the thread to update the interface
+        global recvThread, ser, receiveControl, updateThread, updateControl
         if self.start == 0 :
             ser.flushInput()
             self.start = 1
@@ -236,83 +256,105 @@ class Main(QMainWindow,Ui_MainWindow) :
             receiveControl = 1
             updateControl = 1
         if self.stop == 1 :
-            print("Started Again")
+            print("Resumed")
             self.stop = 0
             receiveControl = 1
             updateControl = 1
 
     def doStop(self) :
-        # stop the thread which updates the Interface
-        global recvThread,receiveControl,updateControl
+        # stop the thread which updates the interface
+        global receiveControl, updateControl
         if self.stop == 0 :
-            print("Stopped")
+            print("Paused")
             self.stop = 1
             receiveControl = 0
             updateControl = 0
             print("Press Ctrl+C to exit")
-            #sys.exit(0)
+    
+    def chooseFile(self):
+        global FILE, FILENAME
+        FILENAME = QtWidgets.QFileDialog.getSaveFileName()[0]
+        if FILENAME != None and FILENAME != "":
+            print("Saving data to \"{0}\"".format(FILENAME))
+        
+        if FILE is None:
+            try:
+                FILE = open(FILENAME, 'a')
+            except Exception as _:
+                print("Unable to open file!")
+                FILENAME = None
+        else:
+            FILE.close()
+            try:
+                FILE = open(FILENAME, 'a')
+            except Exception as _:
+                print("Unable to open file!")
+                FILENAME = None
 
-    def updateRGB(self,pos) :
-        global dataQueue
-        patchNum = pos//16
-        row = (pos%16)//4
-        col = (pos%16)%4
+    def doRead(self):
+        global WRITE
+        if WRITE:
+            WRITE = False
+            self.readButton.setText("Resume")
+        else:
+            WRITE = True
+            self.readButton.setText("Pause")
+
+    def updateRGB(self,pos):
+        global spikeEvent
+        patchNum = pos % 4
+        row = (pos % 16)//4
+        col = pos//16
         for sense in range(3) :
-            iVal = spikeEvent[patchNum][row][col]
-            self.intensityData[sense][patchNum][row][col][0] = max(0,2*iVal-255)
-            self.intensityData[sense][patchNum][row][col][2] = max(0,255-2*iVal)
-            self.intensityData[sense][patchNum][row][col][1] = 255-max(0,255-2*iVal)-max(0,2*iVal-255)
+            if spikeEvent[patchNum][row][col] == 1:
+                self.intensityData[sense][patchNum][row][col] = np.array([255, 0, 0])
+            elif spikeEvent[patchNum][row][col] == -1:
+                self.intensityData[sense][patchNum][row][col] = np.array([0, 0, 255])
+            else:
+                self.intensityData[sense][patchNum][row][col] = np.array([0, 0, 0])
         
 
-    # The function to update the Interface in real time. This function is ran in a thread.
+    # Function to update the interface in real time.
+    # It runs in a separate thread.
     def processData(self) :
-        global update,dataQueue
+        global update
         while True :
-            #print(self.stop)
             if self.stop == 0 and update == 1 :
-                #print(dataQueue)
                 for pos in range(64) :
                     self.updateRGB(pos)    
                 update = 0
                 
-                #time.sleep(0.005)
                 for patchNum in range(4) :
                     if patchNum == 0 :
                         self.currImageMed1.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh1.setImage(self.intensityData[2][patchNum],levels=(0,255))
                         self.currImageLow1.setImage(self.intensityData[0][patchNum],levels=(0,255))
-                        #print("Updating color maps")
-                        #print(self.intensityData[0][0],self.intensityData[1][0],self.intensityData[2][0])
                     elif patchNum == 1 :
                         self.currImageLow2.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed2.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh2.setImage(self.intensityData[2][patchNum],levels=(0,255))
-                        #print(self.intensityData[0][1],self.intensityData[1][1],self.intensityData[2][1])
                     elif patchNum == 2 :
                         self.currImageLow3.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed3.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh3.setImage(self.intensityData[2][patchNum],levels=(0,255))
-                        #print(self.intensityData[0][2],self.intensityData[1][2],self.intensityData[2][2])
                     elif patchNum == 3 :
                         self.currImageLow4.setImage(self.intensityData[0][patchNum],levels=(0,255))
                         self.currImageMed4.setImage(self.intensityData[1][patchNum],levels=(0,255))
                         self.currImageHigh4.setImage(self.intensityData[2][patchNum],levels=(0,255))
             time.sleep(0.001)
-        #print(self.intensityData[0])
-
 
 # Thread to receive data
 recvThread = threading.Thread(target = receive)
+# Thread to process the received data
 updateThread = threading.Thread(target = updateDataQueue)
-#recvThread = ThreadHandler(receive)
-
-# Parallely update the display based on received data. The class for interface( Main )
-# itself runs another thread.
  
 if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    main = Main()
-    main.show()
-
-    sys.exit(app.exec_())
-    recvThread.join(0)
+    try:
+        app = QtWidgets.QApplication(sys.argv)
+        main = Main()
+        main.show()
+        app.exec_()
+        recvThread.join(0)
+    except Exception as _:
+        pass
+    sys.exit(0)

@@ -304,7 +304,7 @@ background-color: rgb(3, 3, 3);</string>
      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Low&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="readButton">
+   <widget class="QPushButton" name="chooseButton">
     <property name="geometry">
      <rect>
       <x>560</x>
@@ -343,7 +343,7 @@ background-color: rgb(3, 3, 3);</string>
      <enum>Qt::Horizontal</enum>
     </property>
    </widget>
-   <widget class="QPushButton" name="toggleRead">
+   <widget class="QPushButton" name="readButton">
     <property name="geometry">
      <rect>
       <x>560</x>
