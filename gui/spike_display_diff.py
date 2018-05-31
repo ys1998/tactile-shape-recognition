@@ -168,7 +168,7 @@ class Main(QMainWindow,Ui_MainWindow) :
         # Thread which updates the plot based on data received from microcontroller
         self.thr = threading.Thread(target = self.processData)
 
-        print("Intitialising ... ", end='')
+        print("Intitialising ... ")
         self.init()
         print("Done.")
 
