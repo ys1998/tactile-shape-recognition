@@ -1,0 +1,4 @@
+References
+==========
+[33] Active Tactile Exploration based on cost-aware ...
+YCB object and model set
