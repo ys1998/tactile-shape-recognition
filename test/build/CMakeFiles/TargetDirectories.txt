@@ -1,0 +1,3 @@
+/home/yash/Github_repos/tactile-shape-recognition/examples/build/CMakeFiles/rebuild_cache.dir
+/home/yash/Github_repos/tactile-shape-recognition/examples/build/CMakeFiles/vis.dir
+/home/yash/Github_repos/tactile-shape-recognition/examples/build/CMakeFiles/edit_cache.dir
