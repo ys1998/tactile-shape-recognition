@@ -313,7 +313,8 @@ def point_cloud_to_fileobj(pc, fileobj, data_compression=None):
     fileobj.write(header)
     if metadata['data'].lower() == 'ascii':
         fmtstr = build_ascii_fmtstr(pc)
-        np.savetxt(fileobj, pc.pc_data, fmt=fmtstr)
+        # np.savetxt(fileobj, pc.pc_data, fmt=fmtstr)
+        np.savetxt(fileobj, pc.pc_data)
     elif metadata['data'].lower() == 'binary':
         fileobj.write(pc.pc_data.tostring('C'))
     elif metadata['data'].lower() == 'binary_compressed':
