@@ -45,11 +45,12 @@ def extract_shape_vectors(filepath, n_features):
 	# Find the points of view
 	pov = np.stack([x, y, z, -x, -y, -z])
 	# Find the 3D shape vectors
-	fv = np.zeros([6, n_features])
+	fv = []
 	for i in range(6):
-		fv[i] = find_radial_distribution(pts - pov[i], n_features)
+		fv.append(find_combined_distribution(pts - pov[i], n_features))
+		# fv.append(find_radial_distribution(pts - pov[i], n_features))
 		# TODO Try 'find_linear_distribution'
-	return fv
+	return np.asarray(fv)
 	
 """
 Bring the point cloud into standard orientation by shifting,
@@ -109,7 +110,7 @@ Compare two feature vectors.
 Uses cosine similarity currently.
 """
 def compare(fv_1, fv_2):
-	product = np.sum(fv_1 * fv_2, axis=1)/(np.linalg.norm(fv_1, axis=1) * np.linalg.norm(fv_2, axis=1))
+	product = [np.sum(fv_1[i] * fv_2[i])/(np.linalg.norm(fv_1[i]) * np.linalg.norm(fv_2[i])) for i in range(fv_1.shape[0])]
 	# Combine similarities
 	# TODO try ML algo for appropriate weights?
 	# Weigh a particular POV more?
@@ -122,9 +123,45 @@ Equi-volume shells are used as histogram bins and simple averaging
 is used for normalizing the histogram.
 """
 def find_radial_distribution(pts, n_features):
-	MAX_RADIUS = 2 + 1e-3 # add small margin for boundary point(s)
 	distro = np.zeros(n_features)
 	dist = np.linalg.norm(pts, axis=1)
+	MAX_RADIUS = np.max(dist) + 1e-3 # add small margin for boundary point(s)
 	idxs = np.floor(n_features * np.power(dist/MAX_RADIUS, 1/3)).astype(int)
 	distro[idxs] += 1
 	return distro/np.sum(distro)
+
+"""
+Find the 'combined' distribution of given point cloud about (0,0,0).
+The intersection regions of equi-thickness shells and equi-angle sectors
+serve as histogram bins. Simple averaging is used for normalization.
+"""
+def find_combined_distribution(pts, n_features):
+	distro = np.zeros([n_features, n_features, n_features])
+	x, y, z = pts.T
+	# Find azimuthal angle in [0, pi] for each point
+	phi = np.arctan(np.sqrt(x**2 + y**2)/z) + np.pi * (z < 0).astype(float)
+	# Find polar angle in [0, 2*pi] for each point
+	polar = np.arctan(abs(y/x))
+	polar[np.logical_and(x < 0, y >= 0)] = np.pi - polar[np.logical_and(x < 0,y >= 0)]
+	polar[np.logical_and(x < 0,y < 0)] += np.pi
+	polar[np.logical_and(x >= 0, y < 0)] = 2*np.pi - polar[np.logical_and(x >= 0, y < 0)]
+	# Find distances from origin 
+	dist = np.sqrt(x**2 + y**2 + z**2)
+	max_dist = np.max(dist) + 1e-8
+	x_idx = np.floor(polar*n_features/(2*np.pi)).astype(int)
+	y_idx = np.floor(phi*n_features/np.pi).astype(int)
+	z_idx = np.floor(dist * n_features/max_dist).astype(int)
+	# Calculate frequencies
+	for x,y,z in zip(x_idx, y_idx, z_idx):
+		distro[x,y,z] += 1
+	# Return averaged histogram
+	return distro/pts.shape[0]
+
+"""
+Extract shape vectors of default models.
+"""
+def load_default(n_features):
+	fv = {}
+	for shape in ['cylinder', 'sphere', 'cube', 'cuboid', 'prism', 'pyramid']:
+		fv[shape] = extract_shape_vectors('../3D_models/' + shape + '.pcd', n_features)
+	return fv

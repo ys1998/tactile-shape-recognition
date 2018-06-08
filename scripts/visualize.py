@@ -1,45 +1,68 @@
 """
-Script for visualizing point clouds using the Point Cloud Library.
-Three step process:
-    - Estimate normals for data points
-    - Reconstruct surface using Poisson/MarchingCubes algorithm
-    - Display reconstructed surface
-
-(parameters used aren't tuned)
+Functions for visualizing data. 
 """
 
 import subprocess, os, sys
-import argparse
+import seaborn as sn
+from compare import load_default, compare
+import numpy as np
+import matplotlib.pyplot as plt
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--model', type=str, required=True, help="Path to point cloud file")
-parser.add_argument('--algo', type=int, choices=[1,2], default=1, help="Reconstruction algorithm [Poisson (1) / MarchingCubes (2)]")
-parser.add_argument('--stage', type=int, choices=[1,2,3], default=3, help="Processing level [1] raw [2] with normals [3] reconstructed surface")
-
-def main(args):
-    model_path = args.model
+"""
+Visualizing point clouds using the Point Cloud Library.
+Three stage process (parameters used aren't tuned):
+    - [STAGE 1] Collect raw point cloud
+    - [STAGE 2] Estimate normals for data points
+    - [STAGE 3] Reconstruct surface using Poisson/MarchingCubes algorithm
+"""
+def render3D(model_path, algo=1, stage=3):
     if not os.path.exists(model_path):
         print("Invalid path!")
         exit(1)
     else:
-        # Normal estimation
-        h, t = os.path.split(os.path.abspath(model_path))
-        subprocess.check_output([
-                            'pcl_normal_estimation', 
-                            model_path, 
-                            os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]),
-                            '-k', "100"
-                        ])
-        # Surface reconstruction
-        command = 'pcl_poisson_reconstruction' if args.algo is 1 else 'pcl_marching_cubes_reconstruction'
-        subprocess.call([
-                            command, 
-                            os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]), 
-                            os.path.join(h, t.split('.')[0] + '_output.vtk')
-                        ])
-        # View reconstructed surface
-        subprocess.call(['pcl_viewer', os.path.join(h, t.split('.')[0] + '_output.vtk')])
+        if stage == 1:
+            # Display raw point cloud
+            subprocess.check_output([
+                'pcl_viewer',
+                model_path,
+            ])
+        else:
+            # Normal estimation
+            h, t = os.path.split(os.path.abspath(model_path))
+            subprocess.check_output([
+                                'pcl_normal_estimation', 
+                                model_path, 
+                                os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]),
+                                '-k', "100"
+                            ])
+            if stage == 2:
+                subprocess.check_output([
+                    'pcl_viewer',
+                    os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]),
+                    '-normals', '1'
+                ])
+            elif stage == 3:
+                # Surface reconstruction
+                command = 'pcl_poisson_reconstruction' if algo is 1 else 'pcl_marching_cubes_reconstruction'
+                subprocess.call([
+                                    command, 
+                                    os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]), 
+                                    os.path.join(h, t.split('.')[0] + '_output.vtk')
+                                ])
+                # View reconstructed surface
+                subprocess.call(['pcl_viewer', os.path.join(h, t.split('.')[0] + '_output.vtk')])
 
-if __name__ == '__main__':
-    args = parser.parse_args()
-    main(args)
+"""
+Confusion matrix for shape similarity amongst default shapes.
+"""
+def default_confusion_matrix():
+    fv = load_default(50)
+    x_labels = y_labels = list(fv.keys())
+    conf_matrix = np.zeros((len(fv), len(fv)))
+    for i, shape1 in enumerate(fv.keys()):
+        for j, shape2 in enumerate(fv.keys()):    
+            conf_matrix[i,j] = compare(fv[shape1], fv[shape2])
+    
+    plt.figure("Confusion Matrix")
+    _ = sn.heatmap(conf_matrix, annot=True, xticklabels=x_labels, yticklabels=y_labels)
+    plt.show()
