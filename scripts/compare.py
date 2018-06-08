@@ -26,6 +26,7 @@ import os, sys
 sys.path.append('..')
 
 import pypcd.pypcd as pcd
+from scripts.pcd_io import load_point_cloud, save_point_cloud
 
 """
 Extract shape vectors from a point cloud stored in a PCD file.
@@ -35,11 +36,7 @@ def extract_shape_vectors(filepath, n_features):
 		print("Specified file does not exist.")
 		exit(1)
 	# Load point cloud (pc)
-	with open(filepath, 'r') as f:
-		pc = pcd.point_cloud_from_fileobj(f)
-	pts = pc.pc_data
-	# NOTE Hack for converting structured array to ndarray
-	pts = pts.view(pts.dtype[0]).reshape(pts.shape + (-1,))
+	pts = load_point_cloud(filepath)
 	# Normalize point cloud and get axes
 	x, y, z = normalize(pts)
 	# Find the points of view
@@ -132,7 +129,7 @@ def find_radial_distribution(pts, n_features):
 
 """
 Find the 'combined' distribution of given point cloud about (0,0,0).
-The intersection regions of equi-thickness shells and equi-angle sectors
+The intersection volumes of equi-thickness shells and equi-angle sectors
 serve as histogram bins. Simple averaging is used for normalization.
 """
 def find_combined_distribution(pts, n_features):

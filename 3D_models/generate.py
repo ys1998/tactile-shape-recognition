@@ -8,6 +8,7 @@ from math import *
 sys.path.append('..')
 
 import pypcd.pypcd as pcd
+from scripts.pcd_io import load_point_cloud, save_point_cloud
 
 """
 Point clouds for supported 3D shapes.
@@ -111,41 +112,12 @@ def cuboid():
     return np.concatenate([base1, surface, base2])
 
 """
-Generate and save point clouds to PCD file.
+Generate point clouds for default models.
 """
-def save_point_cloud(shape, save_dir):
+def generate_shape_pc(shape, save_dir):
     if shape not in globals():
         print("Shape not found.")
     else:
         # Generate point cloud
         point_cloud = globals()[shape]()
-        pc = pcd.make_xyz_point_cloud(point_cloud)
-        # Write point cloud to file in PCD format
-        metadata = pc.get_metadata()
-        with open(os.path.join(save_dir, shape + '.pcd'), 'w') as fileobj:
-            # Write headers
-            template = "VERSION {version}\nFIELDS {fields}\nSIZE {size}\nTYPE {type}\nCOUNT {count}\nWIDTH {width}\nHEIGHT {height}\nVIEWPOINT {viewpoint}\nPOINTS {points}\nDATA {data}\n"
-            new_fields = []
-            for f in metadata['fields']:
-                if f == '_':
-                    new_fields.append('padding')
-                else:
-                    new_fields.append(f)
-            metadata['fields'] = ' '.join(new_fields)
-            metadata['size'] = ' '.join(map(str, metadata['size']))
-            metadata['type'] = ' '.join(metadata['type'])
-            metadata['count'] = ' '.join(map(str, metadata['count']))
-            metadata['width'] = str(metadata['width'])
-            metadata['height'] = str(metadata['height'])
-            metadata['viewpoint'] = ' '.join(map(str, metadata['viewpoint']))
-            metadata['points'] = str(metadata['points'])
-            metadata['data'] = 'ascii'
-            tmpl = template.format(**metadata)
-            fileobj.write(tmpl)
-
-            pts = pc.pc_data
-            # NOTE Hack to convert structured numpy array to ndarray
-            pts = np.squeeze(pts.view(pts.dtype[0]).reshape(pts.shape + (-1,)))
-            # Write the data
-            np.savetxt(fileobj, pts, fmt='%.8f')
-            fileobj.close()
+        save_point_cloud(point_cloud, os.path.join(save_dir, shape + '.pcd'))
