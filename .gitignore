@@ -4,4 +4,4 @@ build
 3D_models/*/*.pcd
 save/*/*.pcd
 save/*/*.vtk
-
+save/*/*.png
