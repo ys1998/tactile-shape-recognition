@@ -45,7 +45,7 @@ In order to generate the training data (`.pcd` files for point clouds)
 ```
 $ cd 3D_models
 $ python -i generate.py 
->>> generate_data()
+>>> generate_data(num_samples=1000, min_pts=50, max_pts=150)
 ```
 For extracting point-of-view images from the generated data
 ```
