@@ -74,6 +74,13 @@ def normalize(pts):
 	pts = np.matmul(pts, u.T)
 	# Rescale the point cloud using 'lambda_1'
 	pts /= delta[0]
+
+	#####################################################################
+	# Scale down point cloud so that it lies within a unit sphere [EXTRA]
+	max_dist = np.max(np.linalg.norm(pts, axis=1))
+	pts /= max_dist
+	#####################################################################
+
 	# Obtain the vectors defining axes
 	ax_1, ax_2, ax_3 = np.transpose(u/np.linalg.norm(u, axis=0))
 	# Find sum of projections of points on these axes
@@ -99,7 +106,6 @@ def normalize(pts):
 		else:
 			x = ax_3
 			y, z = (ax_2, ax_1) if np.dot(x, np.cross(ax_2, ax_1)) > 0 else (ax_1, ax_2)
-
 	return x, y, z
 
 """
