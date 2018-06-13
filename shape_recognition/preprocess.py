@@ -61,6 +61,9 @@ def main():
     data = []
     labels = []
 
+    total_imgs = 6006*6
+    img_cntr = 0
+
     # Walk through the data directory
     for root, _, files in os.walk(data_dir):
         chunk = None; cntr=0
@@ -68,6 +71,8 @@ def main():
             name, ext = os.path.splitext(f)
             # check if the file is valid
             if name.startswith('view') and ext == '.png':
+                print("Processing image %d/%d" % (img_cntr, total_imgs))
+                img_cntr += 1
                 cntr += 1
                 if chunk is None:
                     chunk = np.empty([6, 128, 128])
@@ -86,8 +91,8 @@ def main():
             labels.append(make_label(LABELS[os.path.split(root)[1].split('_')[0]]))
     
     # Convert output into a single array
-    data = np.stack(data)
-    labels = np.stack(labels)
+    data = np.stack(data).astype(np.int8)
+    labels = np.stack(labels).astype(np.int8)
 
     # Save to disk
     np.save(os.path.join(save_dir, 'data.npy'), data)
