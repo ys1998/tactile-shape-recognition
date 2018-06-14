@@ -194,8 +194,10 @@ class vCNN(object):
         Returns prediction if Y is None, otherwise returns accuracy. 
         Assumes that graph has been already loaded and initialized within 'sess'.
         """ 
+        X = X[:50]
         preds = sess.run(self.predictions, feed_dict = {self._input:X})
         if Y is None:
             return preds
         else:
+            Y = Y[:50]
             return np.mean(np.argmax(preds, axis=1)==np.argmax(Y, axis=1))
