@@ -7,7 +7,12 @@ import numpy as np
 
 class MVCNN(object):
     def __init__(self):
+        # CNN1
 
+        # Pooling
+
+
+        # CNN2
 
 
     def train(self, X, Y):
