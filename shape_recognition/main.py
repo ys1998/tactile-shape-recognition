@@ -53,7 +53,7 @@ def main():
             saver.restore(sess, tf.train.latest_checkpoint(save_dir))
         else:
             sess.run(tf.global_variables_initializer())
-        model.train(sess, batch_loader=loader)
+        model.train(sess, batch_loader=loader, learning_rate=1e-3)
         print("Model trained.")
         x_test, y_test = loader.get_batch(split='test')
         print("Test accuracy %.4f" % model.test(sess, x_test, y_test))    

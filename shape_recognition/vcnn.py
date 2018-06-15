@@ -42,7 +42,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.sigmoid,
+                        activation=tf.nn.relu,
                         name='ConvLayer1',
                         reuse=tf.AUTO_REUSE
                     )
@@ -60,7 +60,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.sigmoid,
+                        activation=tf.nn.relu,
                         name='ConvLayer2',
                         reuse=tf.AUTO_REUSE
                     )
@@ -78,7 +78,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.sigmoid,
+                        activation=tf.nn.relu,
                         name='ConvLayer3',
                         reuse=tf.AUTO_REUSE
                     )
@@ -121,7 +121,7 @@ class vCNN(object):
                 vl = tf.layers.dense(
                     inputs=combined_preds,
                     units=n_shapes,
-                    activation=tf.nn.sigmoid,
+                    activation=tf.nn.relu,
                     use_bias=True,
                     kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1),
                     bias_initializer=tf.zeros_initializer(),
@@ -136,7 +136,7 @@ class vCNN(object):
             self._loss = tf.reduce_mean(self._loss)
 
             # Optimizers
-            optim = tf.train.GradientDescentOptimizer(learning_rate=self._lr)
+            optim = tf.train.AdamOptimizer(learning_rate=self._lr)
             # TODO Clip gradients if 'NaN' values appear
             self.train_step = optim.minimize(self._loss)
 
