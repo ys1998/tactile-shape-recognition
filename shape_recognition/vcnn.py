@@ -140,7 +140,7 @@ class vCNN(object):
             # TODO Clip gradients if 'NaN' values appear
             self.train_step = optim.minimize(self._loss)
 
-    def train(self, sess, batch_loader, n_epochs=50, learning_rate=1e-3, save_dir='save', log_dir='logs'):
+    def train(self, sess, batch_loader, n_epochs=50, learning_rate=1e-3, save_dir='save/model', log_dir='logs'):
         """ 
         Trains the model. 
         Assumes that graph has been already loaded and initialized within 'sess'.
