@@ -136,7 +136,7 @@ class vCNN(object):
             self._loss = tf.reduce_mean(self._loss)
 
             # Optimizers
-            optim = tf.train.AdamOptimizer(learning_rate=self._lr)
+            optim = tf.train.GradientDescentOptimizer(learning_rate=self._lr)
             # TODO Clip gradients if 'NaN' values appear
             self.train_step = optim.minimize(self._loss)
 
