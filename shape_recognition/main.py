@@ -40,7 +40,7 @@ class BatchLoader(object):
 
 def main():
     restore = False
-    save_dir = 'save'
+    save_dir = './save/vcnn'
 
     # Create data loader
     loader = BatchLoader(data_dir='data', batch_size=50)
