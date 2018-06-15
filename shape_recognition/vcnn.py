@@ -200,4 +200,4 @@ class vCNN(object):
             return preds
         else:
             Y = Y[:50]
-            return np.mean(np.argmax(preds, axis=1)==np.argmax(Y, axis=1))
+            return np.mean(np.argmax(preds[-1], axis=1)==np.argmax(Y, axis=1))
