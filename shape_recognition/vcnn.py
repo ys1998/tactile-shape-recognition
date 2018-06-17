@@ -168,8 +168,7 @@ class vCNN(object):
                         self._loss, 
                         self.train_step,
                         tf.assign_add(self.step, 1),
-                        tf.summary.merge_all()
-                        
+                        tf.summary.merge_all()   
                     ], 
                     feed_dict={
                         self._input:X, 
