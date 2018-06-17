@@ -35,7 +35,9 @@ After a few weeks of working with the tactile sensors, we realized that using th
 *   **the resolution of the sensors was low.** The 4x4 arrays were not sufficient for capturing features of the object being palpated; since the sensors had to be mounted on fingertips, their small size had to be maintained.
 *   **normal estimation using the standard pitch-and-roll method would be crude.** Earlier shape recognition methods used normal information at the points of contact to determine the object's shape. These details were obtained by placing the finger on the surface (pitching) followed by rolling it on either side to estimate the curvature from sensor values.
 
-![pitch-and-roll](images/pitch-and-roll.png)
+<center>
+<img src="images/pitch-and-roll.png" />
+</center>
 
 Due to low resolution of tactile sensors, normal estimation using the above method would give crude results. We thus needed a method that depended only on points-of-contact, and not the corresponding normals. We therefore decided to spilt the task into two objectives (very different from before)
 1.   formulate an [algorithm](#shape-recognition) for recognizing shape using *only* point clouds
