@@ -2,6 +2,7 @@ import numpy as np
 from vcnn import vCNN
 import os, random
 import tensorflow as tf
+import argparse
 
 class BatchLoader(object):
     def __init__(self, data_dir, batch_size):
@@ -38,22 +39,31 @@ class BatchLoader(object):
             random.shuffle(self._val_split)
             return map(np.stack, zip(*self._val_split))
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--restore', action='store_true', help='Whether to restore partially trained model')
+parser.add_argument('--save_dir', type=str, default='./save', help='Directory where model is saved during/after training')
+parser.add_argument('--load_dir', type=str, default='./save', help='Directory where pretrained model is present')
+parser.add_argument('--batch_size', type=int, default=50, help='Batch size for training')
+parser.add_argument('--lr', type=float, default=1e-3, help='Initial learning rate')
+parser.add_argument('--n_epochs', type=int, default=5, help='Number of epochs of training')
+parser.add_argument('--data_dir', type=str, default='data', help='Directory where training data is present')
+parser.add_argument('--log_dir', type=str, default='logs', help='Directory where training information is logged')
+
 def main():
-    restore = False
-    save_dir = './save'
+	args = parser.parse_args()
 
     # Create data loader
-    loader = BatchLoader(data_dir='data', batch_size=50)
+    loader = BatchLoader(data_dir=args.data_dir, batch_size=args.batch_size)
     # Create model
     model = vCNN()
     # Create session and restore graph, variables
     with tf.Session(graph=model.graph) as sess:
-        if restore:
+        if args.restore:
             saver = tf.train.Saver(max_to_keep=3)
-            saver.restore(sess, tf.train.latest_checkpoint(save_dir))
+            saver.restore(sess, tf.train.latest_checkpoint(args.load_dir))
         else:
             sess.run(tf.global_variables_initializer())
-        model.train(sess, batch_loader=loader, learning_rate=1e-3, n_epochs=5)
+        model.train(sess, batch_loader=loader, save_dir=os.path.join(args.save_dir, 'model'), learning_rate=args.lr, n_epochs=args.n_epochs, log_dir=args.log_dir)
         print("Model trained.")
         x_test, y_test = loader.get_batch(split='test')
         print("Test accuracy %.4f" % model.test(sess, x_test, y_test))    
