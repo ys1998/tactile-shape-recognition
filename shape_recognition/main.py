@@ -40,7 +40,7 @@ class BatchLoader(object):
 
 def main():
     restore = False
-    save_dir = './save/vcnn'
+    save_dir = './save'
 
     # Create data loader
     loader = BatchLoader(data_dir='data', batch_size=50)
@@ -53,7 +53,7 @@ def main():
             saver.restore(sess, tf.train.latest_checkpoint(save_dir))
         else:
             sess.run(tf.global_variables_initializer())
-        model.train(sess, batch_loader=loader, learning_rate=1e-3)
+        model.train(sess, batch_loader=loader, learning_rate=1e-3, n_epochs=5)
         print("Model trained.")
         x_test, y_test = loader.get_batch(split='test')
         print("Test accuracy %.4f" % model.test(sess, x_test, y_test))    
