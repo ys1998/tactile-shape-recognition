@@ -62,6 +62,8 @@ This was developed by [Andrei](https://github.com/andreinakagawa) and [Saipranee
 As described earlier, the challenge 
 
 ### Data preprocessing
+![data-preprocessing](images/data_preprocessing.png)
+
 In order to generate the training data (`.pcd` files for point clouds)
 ```
 $ cd 3D_models
@@ -79,9 +81,13 @@ $ cd shape_recognition
 $ python preprocess.py ../save
 ```
 ### Deep Learning architecture
-*   **vCNN :**
-*   **MVCNN :**
+![model-overview](images/model_overview.png)
+
+We used a modified **Multi-View Convolutional Neural Network (MVCNN)** introduced by [Hang Su et al](https://arxiv.org/abs/1505.00880) for the task of 3D shape recognition. The first CNN has *three* Conv-Pool layers and **two** Fully Connected layers, each with *Leaky ReLU* activation. Instead of using a second CNN for combining the features extracted by the first CNN, we used a much simpler *voting* network, which is basically a single hidden layer feedforward neural network. This *voting* network essentially combines the independent predictions of the first CNN for the 6 PoV images into a single final prediction. Details regarding the architecture are as below.
+
+![model-detailed](images/model_detailed.png)
 
 ### Results
+![Loss](images/loss.png)
 
 ## Palpation
