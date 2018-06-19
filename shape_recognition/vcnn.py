@@ -185,7 +185,7 @@ class vCNN(object):
                 total_loss += loss
 
             # Calculate accuracy on validation set after every epoch
-            val_acc = self.test(sess, x_val, y_val)
+            val_acc = self.test(sess, x_val, y_val, batch_size=self.batch_loader.batch_size)
             print("Validation accuracy: %.4f Average loss: %.4f\n" % (val_acc, total_loss/batch_loader.n_batches))
             # Save model if it has better accuracy
             if val_acc > prev_val_acc:
@@ -197,22 +197,25 @@ class vCNN(object):
             	print("Decaying learning rate to %.4f" % learning_rate)
             prev_loss = total_loss / batch_loader.n_batches
 
-    def test(self, sess, X, Y=None):
+    def test(self, sess, X, Y=None, batch_size=1):
         """ 
         Returns prediction if Y is None, otherwise returns accuracy. 
         Assumes that graph has been already loaded and initialized within 'sess'.
         """ 
-        batch_size = self.batch_loader.batch_size
-        n_iters = X.shape[0]//batch_size
-        preds = []
-        for i in range(n_iters):
-        	temp = sess.run(self.predictions, feed_dict = {self._input:X[i*batch_size:(i+1)*batch_size]})
-        	preds.append(temp[-1])
+        if batch_size != 1:
+            n_iters = X.shape[0]//batch_size
+            preds = []
+            for i in range(n_iters):
+                temp = sess.run(self.predictions, feed_dict = {self._input:X[i*batch_size:(i+1)*batch_size]})
+                preds.append(temp[-1])
 
-        temp = sess.run(self.predictions, feed_dict = {self._input:X[n_iters*batch_size:]})
-        preds.append(temp[-1][:X.shape[0]%batch_size])
-
-        preds = np.concatenate(preds)
+            temp = sess.run(self.predictions, feed_dict = {self._input:X[n_iters*batch_size:]})
+            preds.append(temp[-1][:X.shape[0]%batch_size])
+            preds = np.concatenate(preds)
+        else:
+            # only used for real-time detection
+            temp = sess.run(self.predictions, feed_dict={self._input: X})
+            preds = temp[-1][0]
         if Y is None:
             return preds
         else:

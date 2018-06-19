@@ -51,7 +51,6 @@ parser.add_argument('--log_dir', type=str, default='logs', help='Directory where
 
 def main():
 	args = parser.parse_args()
-
     # Create data loader
     loader = BatchLoader(data_dir=args.data_dir, batch_size=args.batch_size)
     # Create model
@@ -66,7 +65,7 @@ def main():
         model.train(sess, batch_loader=loader, save_dir=os.path.join(args.save_dir, 'model'), learning_rate=args.lr, n_epochs=args.n_epochs, log_dir=args.log_dir)
         print("Model trained.")
         x_test, y_test = loader.get_batch(split='test')
-        print("Test accuracy %.4f" % model.test(sess, x_test, y_test))    
+        print("Test accuracy %.4f" % model.test(sess, x_test, y_test, batch_size=model.batch_loader.batch_size))    
 
 if __name__ == '__main__':
     main()

@@ -19,49 +19,6 @@ Three stage process (parameters used aren't tuned):
 NOTE: Changed the reconstruction algorithm to ConcaveHull for dealing with
 lower number of data points better.
 """
-# def render3D(model_path, algo=1, stage=3, show=True):
-#     if not os.path.exists(model_path):
-#         print("Invalid path!")
-#         exit(1)
-#     else:
-#         if stage == 1 and show:
-#             # Display raw point cloud
-#             subprocess.check_output([
-#                 'pcl_viewer',
-#                 model_path,
-#             ])
-#         else:
-#             # Normal estimation
-#             h, t = os.path.split(os.path.abspath(model_path))
-#             if not os.path.exists(os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1])):
-#                 print('Normal information not found, generating new file.')
-#                 subprocess.check_output([
-#                                     'pcl_normal_estimation', 
-#                                     model_path, 
-#                                     os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]),
-#                                     '-k', "100"
-#                                 ])
-#             if stage == 2 and show:
-#                 subprocess.check_output([
-#                     'pcl_viewer',
-#                     os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]),
-#                     '-normals', '1'
-#                 ])
-#             elif stage == 3:
-#                 if not os.path.exists(os.path.join(h, t.split('.')[0] + '_output.vtk')):
-#                     print('Surface information not found, generating new file.')
-#                     # Surface reconstruction
-#                     command = 'pcl_poisson_reconstruction' if algo is 1 else 'pcl_marching_cubes_reconstruction'
-#                     subprocess.check_call([
-#                                         command, 
-#                                         os.path.join(h, t.split('.')[0] + '_with_normals.' + t.split('.')[1]), 
-#                                         os.path.join(h, t.split('.')[0] + '_output.vtk')
-#                                     ])
-#                 # View reconstructed surface
-#                 if show:
-#                     subprocess.check_call(['pcl_viewer', os.path.join(h, t.split('.')[0] + '_output.vtk')])
-
-
 def render3D(model_path, algo=1, stage=3, show=True):
     if not os.path.exists(model_path):
         print("Invalid path!")
