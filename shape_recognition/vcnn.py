@@ -42,7 +42,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.relu,
+                        activation=tf.nn.leaky_relu,
                         name='ConvLayer1',
                         reuse=tf.AUTO_REUSE
                     )
@@ -60,7 +60,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.relu,
+                        activation=tf.nn.leaky_relu,
                         name='ConvLayer2',
                         reuse=tf.AUTO_REUSE
                     )
@@ -78,7 +78,7 @@ class vCNN(object):
                         padding='same',
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-3),
                         bias_initializer=tf.zeros_initializer(),
-                        activation=tf.nn.relu,
+                        activation=tf.nn.leaky_relu,
                         name='ConvLayer3',
                         reuse=tf.AUTO_REUSE
                     )
@@ -93,7 +93,7 @@ class vCNN(object):
                     fc1 = tf.layers.dense(
                         inputs=flat,
                         units=32,
-                        activation=tf.nn.relu,
+                        activation=tf.nn.leaky_relu,
                         use_bias=True,
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-2),
                         bias_initializer=tf.zeros_initializer(),
@@ -103,7 +103,7 @@ class vCNN(object):
                     fc2 = tf.layers.dense(
                         inputs=fc1,
                         units=n_shapes,
-                        activation=tf.nn.relu,
+                        activation=tf.nn.leaky_relu,
                         use_bias=True,
                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1e-2),
                         bias_initializer=tf.zeros_initializer(),
@@ -121,7 +121,7 @@ class vCNN(object):
                 vl = tf.layers.dense(
                     inputs=combined_preds,
                     units=n_shapes,
-                    activation=tf.nn.relu,
+                    activation=tf.nn.leaky_relu,
                     use_bias=True,
                     kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1),
                     bias_initializer=tf.zeros_initializer(),
@@ -140,11 +140,12 @@ class vCNN(object):
             # TODO Clip gradients if 'NaN' values appear
             self.train_step = optim.minimize(self._loss)
 
-    def train(self, sess, batch_loader, n_epochs=50, learning_rate=0.1, save_dir='save/model', log_dir='logs'):
+    def train(self, sess, batch_loader, n_epochs=50, learning_rate=1e-3, save_dir='save/model', log_dir='logs'):
         """ 
         Trains the model. 
         Assumes that graph has been already loaded and initialized within 'sess'.
         """
+        self.batch_loader = batch_loader
         # Create saver and summary writer
         saver = tf.train.Saver(max_to_keep=3)
         summary_writer = tf.summary.FileWriter(logdir=log_dir, graph=self.graph)
@@ -159,8 +160,10 @@ class vCNN(object):
 
         # Find starting epoch number
         st_epoch = sess.run(self.step) // batch_loader.n_batches
+        prev_loss = 1000
 
         for n in range(st_epoch, n_epochs, 1):
+            total_loss = 0.0
             for i in range(batch_loader.n_batches):
                 X, Y = batch_loader.get_batch(split='train')
                 st = time.time()
@@ -179,24 +182,38 @@ class vCNN(object):
                         (n+1, n_epochs, i+1, batch_loader.n_batches, loss, time.time()-st))
                 # Add summary
                 summary_writer.add_summary(merged, global_step=step)
+                total_loss += loss
 
             # Calculate accuracy on validation set after every epoch
             val_acc = self.test(sess, x_val, y_val)
-            print("Validation accuracy: %.4f\n" % val_acc)
+            print("Validation accuracy: %.4f Average loss: %.4f\n" % (val_acc, total_loss/batch_loader.n_batches))
             # Save model if it has better accuracy
             if val_acc > prev_val_acc:
                 saver.save(sess, save_dir, global_step=step)
                 prev_val_acc = val_acc
+            # Calculate average loss
+            if total_loss / batch_loader.n_batches >= prev_loss:
+            	learning_rate *= 0.5
+            	print("Decaying learning rate to %.4f" % learning_rate)
+            prev_loss = total_loss / batch_loader.n_batches
 
     def test(self, sess, X, Y=None):
         """ 
         Returns prediction if Y is None, otherwise returns accuracy. 
         Assumes that graph has been already loaded and initialized within 'sess'.
         """ 
-        X = X[:50]
-        preds = sess.run(self.predictions, feed_dict = {self._input:X})
+        batch_size = self.batch_loader.batch_size
+        n_iters = X.shape[0]//batch_size
+        preds = []
+        for i in range(n_iters):
+        	temp = sess.run(self.predictions, feed_dict = {self._input:X[i*batch_size:(i+1)*batch_size]})
+        	preds.append(temp[-1])
+
+        temp = sess.run(self.predictions, feed_dict = {self._input:X[n_iters*batch_size:]})
+        preds.append(temp[-1][:X.shape[0]%batch_size])
+
+        preds = np.concatenate(preds)
         if Y is None:
             return preds
         else:
-            Y = Y[:50]
-            return np.mean(np.argmax(preds[-1], axis=1)==np.argmax(Y, axis=1))
+            return np.mean(np.argmax(preds, axis=1)==np.argmax(Y, axis=1))
