@@ -4,7 +4,8 @@ Functions for visualizing data.
 
 import subprocess, os, sys
 import seaborn as sn
-from compare import load_default, compare
+sys.path.append('..')
+from scripts.compare import load_default, compare
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -101,3 +102,17 @@ def default_confusion_matrix():
     plt.figure("Confusion Matrix")
     _ = sn.heatmap(conf_matrix, annot=True, xticklabels=x_labels, yticklabels=y_labels)
     plt.show()
+
+"""
+View PoV images from data array.
+"""
+def view_pov(data):
+    for i in range(data.shape[0]):
+        f, ax = plt.subplots(2, 3, True, True, True)
+        ax[0,0].imshow(data[i][0])
+        ax[0,1].imshow(data[i][1])
+        ax[0,2].imshow(data[i][2])
+        ax[1, 0].imshow(data[i][3])
+        ax[1, 1].imshow(data[i][4])
+        ax[1, 2].imshow(data[i][5])
+        plt.show()
