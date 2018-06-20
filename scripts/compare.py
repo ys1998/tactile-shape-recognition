@@ -25,8 +25,7 @@ import numpy as np
 import os, sys
 sys.path.append('..')
 
-import pypcd.pypcd as pcd
-from scripts.pcd_io import load_point_cloud, save_point_cloud
+from scripts.pcd_io import load_point_cloud
 
 """
 Extract shape vectors from a point cloud stored in a PCD file.

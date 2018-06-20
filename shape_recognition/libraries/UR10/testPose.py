@@ -1,0 +1,11 @@
+from UR10 import *
+pm = URPoseManager()
+pm.load('test.urpose')
+print(pm.getPosJoint('home'))
+pm.addJoint('gbtn',[1,2,3,4,5,6])
+pm.addJoint('ybtn',[1.2,1.3,1.4,1.5,1.6,2.1])
+print(pm.getPoseNames())
+print(pm.getPosJoint('ybtn'))
+print(pm.getPosJoint('bbtn'))
+pm.removePosJoint('redbtn')
+pm.save('test2.urpose')

@@ -25,7 +25,6 @@ Output:
 import numpy as np
 from scipy import misc
 from skimage.transform import resize
-import matplotlib.pyplot as plt
 import os, sys
 
 LABELS = {

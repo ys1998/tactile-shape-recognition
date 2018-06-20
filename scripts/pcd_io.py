@@ -3,7 +3,7 @@ Wrappers for handling PCD files.
 """
 
 import numpy as np
-import os, sys
+import sys
 sys.path.append('..')
 
 import pypcd.pypcd as pcd

@@ -1,0 +1,370 @@
+# -*- coding: utf-8 -*-
+'''
+#-------------------------------------------------------------------------------
+# NATIONAL UNIVERSITY OF SINGAPORE - NUS
+# SINGAPORE INSTITUTE FOR NEUROTECHNOLOGY - SINAPSE
+# Singapore
+# URL: http://www.sinapseinstitute.org
+#-------------------------------------------------------------------------------
+# Neuromorphic Engineering Group
+# Author: Andrei Nakagawa-Silva, MSc
+# Contact: nakagawa.andrei@gmail.com
+#-------------------------------------------------------------------------------
+# Description: This file contains all the necessary method for controlling
+# the iLimb via Python
+#-------------------------------------------------------------------------------
+'''
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+#LIBRARIES
+#-------------------------------------------------------------------------------
+import numpy as np
+from enum import Enum
+import time
+from threading import Thread
+from serial import Serial
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+#ENUMS
+#-------------------------------------------------------------------------------
+#This enum indicates for which finger the action should be performed
+#It should be used for all the functions where _fingerId is passed as argument
+class iLimbFingers(Enum):
+    thumb = 0
+    index = 1
+    middle = 2
+    ring = 3
+    little = 4
+    thumbRotator = 5
+#-------------------------------------------------------------------------------
+#This enum indicates which commands can be sent for a given finger
+#It should be used for all the functions where _cmd is passed as argument
+class iLimbCmds(Enum):
+    stop = 0
+    close = 1
+    open = 2
+    position = 3
+#-------------------------------------------------------------------------------
+#This enum indicates which grasp postures have been implemented in this framework
+#It should be passed for all functions where _pose is passed as argument
+class iLimbPoses(Enum):
+    openHand = 0
+    powerGrasp = 1
+    pinchGrasp = 2
+    tripodGrasp = 3
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# CONTROLLER CLASS
+#-------------------------------------------------------------------------------
+#Class: iLimbController
+#This class allows for individually controlling each finger of the iLimb
+#and some pre-programmed gestures or grasps
+class iLimbController:
+    def __init__(self,comport='/dev/ttyACM0'):
+        #serial port name
+        self.portName = comport
+        #baud rate
+        self.UART_BAUD = 115200
+        #serial handler
+        self.serialHandler = Serial()
+        #package constants
+        self.PKG_ST = 0x24
+        self.PKG_ET = 0x21
+        #minimum and maximum positions for each finger
+        self.fingerPosMinMax = np.zeros((6,2))
+        #from thumb to little, there are 500 different positions
+        for k in range(5):
+            self.fingerPosMinMax[k,0] = 0
+            self.fingerPosMinMax[k,1] = 500
+        #for the thumb rotator, there is 750 different positions
+        self.fingerPosMinMax[-1][0] = 0
+        self.fingerPosMinMax[-1][1] = 750
+        #vector for storing current positions of each finger
+        self.currentFingerPos = np.zeros((6,1))
+        #minimum and maximum pwm values
+        self.minPwm = 0
+        self.maxPwm = 297
+        #defines the pre-defined grasps
+        #whenever a new grasp is designed, it should be added in the class,
+        #to this vector and to the iLimbPoses enum
+        self.poses = [self.openHand,self.powerGrasp,self.pinchGrasp,self.tripodGrasp]
+
+    #connect with the iLimb
+    def connect(self):
+        try:
+            self.serialHandler = Serial(self.portName, self.UART_BAUD)
+            return True
+        except:
+            return False
+
+    #disconnect
+    def disconnect(self):
+        if(self.serialHandler is not None):
+            if(self.serialHandler.isOpen()):
+                self.serialHandler.close()
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    #sends a complete package via serial to the iLimb
+    #the package is assembled by using the function 'controlFingers'
+    def sendSerialPackage(self,package):
+        if self.serialHandler.is_open:
+            for k in range(len(package)):
+                if package[k] is not None:
+                    self.serialHandler.write(chr(package[k]))
+                else:
+                    return False
+        else:
+            return False
+
+        return True
+
+    #control all or any of the fingers of the iLimb at once to avoid the pauses when
+    #controlling individual fingers in a sequential manner. previously it required
+    #a short delay between the calls, now the desired fingers can be sent in a
+    #package and be controlled with minimal time difference
+    #if the package was successfuly assembled and sent it returns TRUE
+    #otherwise, returns FALSE
+    def controlFingers(self,_fingers,_cmds,_pwmpos):
+        #check if all the arguments are lists
+        #if they are, it means that several fingers will be controlled at once
+        if isinstance(_fingers,list) and isinstance(_cmds,list) and isinstance(_pwmpos,list):
+            #check if all the arguments have the same length
+            #if they are different, then return FALSE
+            if (len(_fingers)) == len(_cmds) == len(_pwmpos):
+                #create the serial package
+                #the size of the package will be equal to:
+                #4*N + 3 (header,numbytes,end) where N = number of fingers
+                package = [None]*(4*len(_fingers)+3)
+                #actual package data begins at index 2
+                counter = 2
+                #header
+                package[0] = self.PKG_ST
+                #number of bytes of actual data in the serial package
+                package[1] = 4*len(_fingers)
+                #end of package
+                package[-1] = self.PKG_ET
+                #iterate through the list to assemble the package
+                for k in range(len(_fingers)):
+                    #check if the finger and the command is valid
+                    #returns FALSE otherwise
+                    if(self.isValidFinger(_fingers[k])) and self.isValidCmd(_cmds[k]):
+                        #checks if the pwm or positions is valid
+                        #returns FALSE otherwise
+                        if(self.isValidFinger(_fingers[k])) and self.isValidCmd(_cmds[k]):
+                            if self.isValidPos(_fingers[k],_pwmpos[k]) or self.isValidPwm(_fingers[k],_pwmpos[k]):
+                                    package[counter] = _fingers[k].value #finger id
+                                    package[counter+1] = _cmds[k].value #command or action
+                                    package[counter+2] = _pwmpos[k] >> 8 #pwm or pos MSB
+                                    package[counter+3] = _pwmpos[k] & 0xFF #pwm or pos LSB
+                                    counter+=4 #increments the counter to write the next data
+                            else:
+                                return False #error: wrong values for pwm or position
+                        else:
+                            return False #error: wrong finger or cmd values
+                #print package #debugging
+                #sends the serial package to the iLimb
+                self.sendSerialPackage(package)
+                return True
+            else:
+                return False
+        else:
+            #if the arguments are not lists, then only a single finger
+            #will be controlled
+            #checks if the finger and cmd are valid, returns FALSE otherwise
+            if self.isValidFinger(_fingers) and self.isValidCmd(_cmds):
+                #checks if the pwm or the position are valid, returns FALSE otherwise
+                if self.isValidPos(_fingers,_pwmpos) or self.isValidPwm(_fingers,_pwmpos):
+                    #the package will contain 7 bytes
+                    package = [None]*7
+                    package[0] = self.PKG_ST #start
+                    package[1] = 4 #number of bytes of actual data
+                    package[2] = _fingers.value #finger id
+                    package[3] = _cmds.value #command or action
+                    package[4] = _pwmpos >> 8 #pwm or pos MSB
+                    package[5] = _pwmpos & 0xFF #pwm or pos LSB
+                    package[6] = self.PKG_ET #end
+            print package
+            #sends the serial package to the iLimb
+            self.sendSerialPackage(package)
+
+    #sends a command to a specified finger
+    #the commands are given by cmdStop, cmdClose and cmdOpen
+    def sendCmdFinger(self,_fingerId,_cmd,_pwm=297):
+        if(self.isValidFinger(_fingerId) and self.isValidCmd(_cmd) and self.isValidPwm(_pwm)):
+            if(self.serialHandler.isOpen()):
+                #sends the package that gives a command to the iLimb
+                self.serialHandler.write(chr(self.PKG_ST)) #header
+                self.serialHandler.write(chr(_fingerId.value)) #finger
+                self.serialHandler.write(chr(_cmd.value)) #command
+                self.serialHandler.write(chr(_pwm>>8)) #pwm MSB
+                self.serialHandler.write(chr(_pwm&0xFF)) #pwm LSB
+                self.serialHandler.write(chr(self.PKG_ET)) #end of package
+                #updates the current position
+                #open => position = 0
+                if(_cmd == iLimbCmds.open):
+                    self.currentFingerPos[_fingerId.value] = self.fingerPosMinMax[_fingerId.value][0]
+                #close => position = maximum (either 500 or 1500)
+                elif(_cmd == iLimbCmds.close):
+                    self.currentFingerPos[_fingerId.value] = self.fingerPosMinMax[_fingerId.value][1]
+                time.sleep(0.005) #necessary interval between commands
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    #set a finger position
+    def setFingerPos(self,_fingerId,_pos):
+        if(self.isValidFinger(_fingerId) and self.isValidPos(_fingerId,_pos)):
+            if(self.serialHandler.isOpen()):
+                self.serialHandler.write(chr(self.PKG_ST))
+                self.serialHandler.write(chr(0x07))
+                self.serialHandler.write(chr(_fingerId.value))
+                self.serialHandler.write(chr(_pos>>8))
+                self.serialHandler.write(chr(_pos&0xFF))
+                self.serialHandler.write(chr(self.PKG_ET))
+                self.currentFingerPos[_fingerId.value] = _pos
+                #time.sleep(0.005) #necessary interval between commands
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    #Performs a pre-defined grasp or pose of the iLimb
+    #Since grasps in general require some delay to wait for the finger
+    #to be opened or closed, this method is used as a bypass. Meaning that it
+    #actually calls the right method (e.g. openHand) inside a different thread.
+    #This way, the main thread of whatever application will not be
+    #blocked during the execution of the grasp
+    def setPose(self, _pose):
+        if(self.isValidPose(_pose)):
+                if(self.serialHandler.isOpen()):
+                    th = Thread(target = self.poses[_pose.value])
+                    th.start()
+                    return True
+                else:
+                    return False
+        else:
+            return False
+
+    #completely open the hand
+    def openHand(self):
+        #first open thumb
+        self.sendCmdFinger(iLimbFingers.thumb, iLimbCmds.open)
+        time.sleep(1) #waits one second
+        #open all the other fingers
+        #index finger
+        self.sendCmdFinger(iLimbFingers.index, iLimbCmds.open)
+        time.sleep(0.002) #short delay is necessary between commands
+        #middle finger
+        self.sendCmdFinger(iLimbFingers.middle, iLimbCmds.open)
+        #middle finger
+        self.sendCmdFinger(iLimbFingers.ring, iLimbCmds.open)
+        #little finger
+        self.sendCmdFinger(iLimbFingers.little, iLimbCmds.open)
+        #rotates the thumb back to the original position
+        self.sendCmdFinger(iLimbFingers.thumbRotator, iLimbCmds.open)
+        #setting the current position of all fingers to zero
+        self.currentFingerPos = np.zeros((6,1))
+
+    #perform power grasp
+    def powerGrasp(self):
+        #first rotate thumb
+        self.sendCmdFinger(iLimbFingers.thumbRotator, iLimbCmds.close)
+        time.sleep(1.5) #necessary for waiting the thumb to fully rotate
+        #close all fingers
+        self.sendCmdFinger(iLimbFingers.index, iLimbCmds.close)
+        self.sendCmdFinger(iLimbFingers.middle, iLimbCmds.close)
+        self.sendCmdFinger(iLimbFingers.ring, iLimbCmds.close)
+        self.sendCmdFinger(iLimbFingers.little, iLimbCmds.close)
+        time.sleep(1)
+        #close the thumb, but not completely
+        self.setFingerPos(iLimbFingers.thumb, 400)
+
+    def pinchGrasp(self):
+        #first rotate thumb
+        self.sendCmdFinger(iLimbFingers.thumbRotator, iLimbCmds.close)
+        time.sleep(1.5) #necessary for waiting the thumb to fully rotate
+        #close only the index finger
+        self.sendCmdFinger(iLimbFingers.index, iLimbCmds.close)
+        #close the thumb
+        self.sendCmdFinger(iLimbFingers.thumb, iLimbCmds.close)
+
+    def tripodGrasp(self):
+        #first rotate thumb
+        self.sendCmdFinger(iLimbFingers.thumbRotator, iLimbCmds.close)
+        time.sleep(1.5) #necessary for waiting the thumb to fully rotate
+        #close the index finger
+        self.sendCmdFinger(iLimbFingers.index, iLimbCmds.close)
+        #close the middle finger
+        self.sendCmdFinger(iLimbFingers.middle, iLimbCmds.close)
+        #close the thumb
+        self.sendCmdFinger(iLimbFingers.thumb, iLimbCmds.close)
+
+
+    #check if desired pose is valid or not
+    def isValidPose(self, _pose):
+        if not isinstance(_pose,iLimbPoses):
+            return False
+        else:
+            return True
+
+    #check if finger is valid or nor
+    def isValidFinger(self, _fingerId):
+        if not isinstance(_fingerId, iLimbFingers):
+            return False
+        else:
+            return True
+
+    #check if the command is valid or not
+    def isValidCmd(self, _cmd):
+        if not isinstance(_cmd, iLimbCmds):
+            return False
+        else:
+            return True
+
+    #check if the position is valid or not
+    def isValidPos(self, _fingerId, _pos):
+        if self.isValidFinger(_fingerId):
+            if(_pos < self.fingerPosMinMax[_fingerId.value,0] or _pos > self.fingerPosMinMax[_fingerId.value,1]):
+                return False
+        else:
+            return False
+        return True
+
+    #check if the pwm value is valid or not
+    def isValidPwm(self, _pwm):
+        if _pwm < self.minPwm or _pwm > self.maxPwm:
+            return False
+        else:
+            return True
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+#Use the main to test whatever functions of the iLimb
+#When executed, it will open the hand and perform a hang-lose
+if __name__ == '__main__':
+    #creates a new object
+    il = iLimbController('COM12')
+    il.connect()
+    #print il.controlFingers(iLimbFingers.index,iLimbCmds.position,0)
+    il.controlFingers([iLimbFingers.index,iLimbFingers.ring],[iLimbCmds.position,iLimbCmds.position],[0,0])
+    il.disconnect()
+
+    #il.connect()
+    #open the hand
+    #il.setPose(iLimbPoses.openHand)
+    #waits for the hand to be opened
+    #time.sleep(3);
+    #hang-lose
+    #close the index finger
+    #il.sendCmdFinger(iLimbFingers.index, iLimbCmds.close)
+    #close the middle finger
+    #il.sendCmdFinger(iLimbFingers.middle, iLimbCmds.close)
+    #close the ring finger
+    #il.sendCmdFinger(iLimbFingers.ring, iLimbCmds.close)
+#-------------------------------------------------------------------------------
