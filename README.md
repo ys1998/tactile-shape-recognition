@@ -59,10 +59,13 @@ This was developed by [Andrei](https://github.com/andreinakagawa) and [Saipranee
 ![gui](images/gui.png)
 
 ## Shape Recognition
-As described earlier, the challenge 
+As described earlier, the challenge was to develop an algorithm that was simple yet robust to noise which might be introduced due to the low resolution of the sensors. We had to look into methods which didn't use normal information at the points of contact (earlier approaches often relied on this information) and at the same time used minimum number of contact points.
 
-### Data preprocessing
+The tactile sensors were used for identifying whether the prosthetic hand was in contact with a surface or not. The object to be recognised was palpated and the coordinates of points of contact were collected. This point cloud was normalized by performing *recentering*, *rotation*, *scaling* and *axes-flipping* operations. We then constructed a crude surface enveloping these points by computing their *convex hull*. 6 point-of-view images were extracted from this surface from the 6 face-centers of the enclosing cube. These images were used as inputs to the deep learning model.
+
 ![data-preprocessing](images/data_preprocessing.png)
+
+### Data generation and preprocessing
 
 In order to generate the training data (`.pcd` files for point clouds)
 ```
@@ -86,6 +89,13 @@ $ python preprocess.py ../save
 We used a modified **Multi-View Convolutional Neural Network (MVCNN)** introduced by [Hang Su et al](https://arxiv.org/abs/1505.00880) for the task of 3D shape recognition. The first CNN has *three* Conv-Pool layers and *two* Fully Connected layers, each with *leaky ReLU* activation. Instead of using a second CNN for combining the features extracted by the first CNN, we used a much simpler *voting* network, which is basically a feedforward neural network with concatenated predictions as input. This *voting* network essentially combines the independent predictions of the first CNN for the 6 PoV images into a single final prediction. Details regarding the architecture are as below.
 
 ![model-detailed](images/model_detailed.png)
+
+For training the model 
+```
+$ cd shape_recognition
+$ python train.py --data_dir data/ --save_dir save/ --batch_size 50 --lr 1e-3 --n_epochs 5 --log_dir logs/
+```
+`--restore` and `--load_dir` flags can be added for resuming training of a partially trained model.
 
 ### Results
 ![Loss](images/loss.png)
