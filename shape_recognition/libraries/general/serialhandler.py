@@ -24,7 +24,7 @@ from struct import unpack
 from collections import deque
 from threading import Lock
 import time
-import sys
+import sys, glob
 #-------------------------------------------------------------------------------
 #method for listing all the serial ports available
 def list_serial_ports():
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     t.start()
     p = ThreadHandler(run)
     p.start()
-    raw_input()
+    input()
     t.kill()
     p.kill()
     s.close()
