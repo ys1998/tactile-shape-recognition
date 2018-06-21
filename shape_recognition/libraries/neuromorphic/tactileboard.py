@@ -214,8 +214,8 @@ class TactileBoard():
         for k in range(n):
             data = q.popleft()
             data = data[2:] + data[0:2]
+            
             for z in range(0,160,2):
-
                 patchNum = int((z/2)%TBCONSTS.NPATCH)
                 row = int((z/2)%(TBCONSTS.NROWS*TBCONSTS.NPATCH)//TBCONSTS.NPATCH)
                 row = TBCONSTS.ROW_IDX[row]
@@ -277,7 +277,7 @@ class TactileBoard():
                 listdata.append(copy(slipSensor))
                 self.dataQueue.append(copy(listdata))
             else: #default -- no slip sensor
-                self.dataQueue.append(copy(self.tactileSensors))
+                self.dataQueue = deque([copy(self.tactileSensors)])
             self.thProcLock.release()
 
         time.sleep(0.001) #necessary to prevent really fast thread access

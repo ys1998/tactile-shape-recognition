@@ -178,18 +178,19 @@ class iLimbController:
 
     #pinch for slight touch --> useful for palpation
     def doFeedbackPinchTouch(self,tactileArray,fingerArray,numberSamples):
+        maximumValues = []
+        meanv = []
+        flagTouch = [False]*len(fingerArray)
+        flagPower = [False]*len(fingerArray)
+        ftouch = [] #which fingers to move for touch
+        fpower = [] #which fingers to move for power grasp
+        
         #add the force frame from the tactile array
         for k in range(len(fingerArray)):
             self.forceList[k].append(tactileArray[fingerArray[k][1]])
        
         if self.controlSampleCounter >= numberSamples:
             if self.ControlPinchTouchFinished is False:
-                maximumValues = []
-                meanv = []
-                flagTouch = [False]*len(fingerArray)
-                flagPower = [False]*len(fingerArray)
-                ftouch = [] #which fingers to move for touch
-                fpower = [] #which fingers to move for power grasp
                 for k in range(len(fingerArray)):
                     #find the maximum values for each frame
                     maximumValues.append([np.max(x) for x in self.forceList[k]])
@@ -203,8 +204,9 @@ class iLimbController:
                     #take the average of this taxel over all frames
                     meanv.append(np.mean(taxelValues))
                     #check if the finger has made contact
-                    if meanv[k] > 0.08:
+                    if meanv[k] > fingerArray[k][2]:
                         flagTouch[k] = True
+                        #ftouch.append(fingerArray[k][0])
                     else:
                         ftouch.append(fingerArray[k][0])
             
@@ -215,19 +217,16 @@ class iLimbController:
                     self.control(ftouch,['position']*len(ftouch),[self.controlPos]*len(ftouch))
                     self.controlPos += 2
                 else:
-                    time.sleep(0.1)
-                    print('here')
-                    ftouch = ['thumb','index']
-                    self.control(ftouch,['position']*len(ftouch),[self.controlPos-20]*len(ftouch))
+                    print('Contact made.')
                     self.ControlPinchTouchFinished = True
                 
             self.controlSampleCounter = 0
             self.forceList = [[] for x in range(5)]
-            time.sleep(0.05)                
+            time.sleep(0.001)                
         else:
             self.controlSampleCounter += 1
 
-        return self.ControlPinchTouchFinished
+        return flagTouch
 
     #sends a complete package via serial to the iLimb
     #the package is assembled by using the function 'controlFingers'
