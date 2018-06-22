@@ -20,17 +20,27 @@ from tactileboard import *
 from UR10 import *
 from threadhandler import ThreadHandler
 from scripts.pcd_io import save_point_cloud
+from ur10_simulation import ur10_simulator
 
 MAPPING = {'index':3, 'thumb':4}
 THRESHOLD = {'index':0.08, 'thumb':0.08}
 
 """ Abstract class for storing state variables """
 class STATE:
-	RADIUS = 70 # radius of object zone in mm
-	NUM_POINTS = 0
 	ROTATION_POS = 0 # 0,1,2,3
 	ROTATION_DIR = -1 # -1/1
+	
+	CONTROL_POS = [0 for _ in range(5)]
+	NUM_POINTS = 0
 	CONTACT_POINTS = []
+
+# iLimb dimensions (mm)
+IDX_TO_BASE = 185
+THB_TO_BASE = 105
+IDX_0 = 50
+IDX_1 = 35
+IDX = 84
+THB = 80
 
 """ Function to initialize handler objects """
 def init_handlers():
@@ -81,8 +91,17 @@ def close_hand(fingers=['index', 'thumb']):
 		for _ in range(len(q)):
 			tactileSample = q.popleft()
 			touched = iLimb.doFeedbackPinchTouch(tactileSample, fingerArray, 1)
+			# update control_pos for fingers that have touched a surface
+			for i in range(len(fingerArray)):
+				if touched[i]:
+					STATE.CONTROL_POS[fingerArray[i][1]] = iLimb.controlPos
+
+			# Self-touching condition
+			if iLimb.controlPos > 500:
+				return False
+
 			if all(touched):
-				break
+				return True
 			else:
 				# update fingerArray
 				fingerArray = [fingerArray[i] for i in range(len(touched)) if not touched[i]]
@@ -90,7 +109,48 @@ def close_hand(fingers=['index', 'thumb']):
 
 """ Function to calculate coordinates of points of contact """
 def compute_coordinates():
-	pass
+	global ur10, iLimb
+	ur10.read_joints_and_xyzR()
+	xyzR = copy(ur10.xyzR)
+	joints = copy(ur10.joints)
+	sim = ur10_simulator()
+	sim.set_joints(joints)
+	initial_pos = sim.joints2pose()
+	tm, rm = sim.get_Translation_and_Rotation_Matrix()
+	# Calculate the direction in which the end effector is pointing
+	# value corresponding to z-direction is ignored
+	direction = rm[:2,2] # x and y direction vector only
+	direction /= np.linalg.norm(direction)
+	
+	# Find point of contact for index finger
+	control = STATE.CONTROL_POS[MAPPING['index']]
+	axis = 0; perp = 0
+	if control < 210:
+		# Normal circular motion
+		theta = 60/210 * control
+		axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta + 20))
+		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta + 20))
+	else:
+		theta = 145/500 * control
+		rel_theta = 160 - 70/290 * (control - 210)
+		axis = IDX_0 * np.cos(np.deg2rad(theta)) - IDX_1 * np.sin(np.deg2rad(90+theta-rel_theta))
+		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(90+theta-rel_theta))
+	axis += IDX_TO_BASE
+	pt_1 = [axis * direction[0] + perp * direction[1] + xyzR[0],
+			-axis * direction[1] + perp * direction[0] + xyzR[1],
+			xyzR[2]]
+
+	# Find point of contact for thumb
+	control = STATE.CONTROL_POS[MAPPING['thumb']]
+	theta = 90 * (1 - control/500)
+	axis = THB * np.cos(np.deg2rad(theta)) + THB_TO_BASE
+	perp = THB * np.sin(np.deg2rad(theta))
+	pt_2 = [axis * direction[0] + perp * direction[1] + xyzR[0],
+			-axis * direction[1] + perp * direction[0] + xyzR[1],
+			xyzR[2]]
+
+	STATE.NUM_POINTS += 2
+	STATE.CONTACT_POINTS += [pt_1, pt_2]
 
 """ Function to rotate hand for next reading """
 def rotate_hand():
@@ -146,9 +206,10 @@ def main():
 	cntr = 0
 	while cntr < 20:
 		for _ in range(4):
-			close_hand()
+			touched = close_hand()
 			time.sleep(0.1)
-			compute_coordinates()
+			if touched:
+				compute_coordinates()
 			iLimb.resetControl()
 			time.sleep(0.5)
 			move_away()
