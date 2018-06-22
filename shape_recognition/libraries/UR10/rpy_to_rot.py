@@ -34,4 +34,4 @@ def rpy_to_rxryrz(rpy):
 	ry = multi * (R[0, 2] - R[2, 0]) * theta
 	rz = multi * (R[1, 0] - R[0, 1]) * theta
 
-	R = np.array([rx,ry,rz])
+	return np.array([rx,ry,rz])

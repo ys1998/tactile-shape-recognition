@@ -10,6 +10,7 @@ sys.path.append('libraries/UR10')
 sys.path.append('libraries/neuromorphic')
 sys.path.append('libraries/general')
 sys.path.append('libraries/controlsyst')
+sys.path.append('../scripts')
 
 import os, subprocess, time
 import numpy as np
@@ -18,14 +19,17 @@ from iLimb import *
 from tactileboard import *
 from UR10 import *
 from threadhandler import ThreadHandler
+from scripts.pcd_io import save_point_cloud
 
 MAPPING = {'index':3, 'thumb':4}
 THRESHOLD = {'index':0.08, 'thumb':0.08}
 
 """ Abstract class for storing state variables """
 class STATE:
+	RADIUS = 70 # radius of object zone in mm
 	NUM_POINTS = 0
-	ROTATION_POS = 0
+	ROTATION_POS = 0 # 0,1,2,3
+	ROTATION_DIR = -1 # -1/1
 	CONTACT_POINTS = []
 
 """ Function to initialize handler objects """
@@ -51,7 +55,6 @@ def configure_handlers():
 	UR10pose = URPoseManager()
 	UR10pose.load('shape_recog_home.urpose')
 	UR10pose.moveUR(ur10,'home_j',5)
-
 
 	print('Setting iLimb to default pose ...')
 	iLimb.setPose('openHand')
@@ -86,10 +89,24 @@ def close_hand(fingers=['index', 'thumb']):
 
 
 """ Function to calculate coordinates of points of contact """
-# def compute_coordinates():
+def compute_coordinates():
+	pass
 
 """ Function to rotate hand for next reading """
-# def rotate_hand():
+def rotate_hand():
+	global ur10
+	ur10.read_joints()
+	joints = copy(ur10.joints)
+
+	if STATE.ROTATION_POS == 3:
+		STATE.ROTATION_POS = 0
+		STATE.ROTATION_DIR *= -1
+	else:
+		joints[4] += 45 * STATE.ROTATION_DIR
+		STATE.ROTATION_POS += 1
+		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=60, constant_axis='z')
+		ur10.movej(xyzR, 10)
+		time.sleep(10)
 
 """ Function to move hand in vertical direction """
 def move_vertical():
@@ -102,9 +119,9 @@ def move_vertical():
 	time.sleep(1)
 
 """ Function to move hand away from the object """
-def move_away():
+def move_away(fingers=['thumb', 'index']):
 	global iLimb
-	iLimb.control(['thumb', 'index'], ['position']*2, [0]*2)
+	iLimb.control(fingers, ['position']*len(fingers), [0]*len(fingers))
 	time.sleep(1)
 
 """ Function to move UR10 to base """
@@ -112,7 +129,7 @@ def move_to_base():
 	global ur10
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
-	new_joint_pos = np.array([x, y, -140, rx, ry, rz])
+	new_joint_pos = np.array([x, y, -100, rx, ry, rz])
 	ur10.movej(new_joint_pos, 1)
 	time.sleep(1)
 
@@ -128,14 +145,21 @@ def main():
 	move_to_base()
 	cntr = 0
 	while cntr < 20:
-		close_hand()
-		time.sleep(0.1)
-		# compute_coordinates()
-		iLimb.resetControl()
-		time.sleep(0.5)
-		move_away()
+		for _ in range(4):
+			close_hand()
+			time.sleep(0.1)
+			compute_coordinates()
+			iLimb.resetControl()
+			time.sleep(0.5)
+			move_away()
+			rotate_hand()
 		move_vertical()
 		cntr += 1
+
+	# Convert collected points to a PCD file
+	pts = np.asarray(STATE.CONTACT_POINTS)
+	save_point_cloud(pts, 'run.pcd')
+	subprocess.check_call(['python', 'detect.py', '../save', 'run.pcd'])
 
 if __name__ == '__main__':
 	main()
