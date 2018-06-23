@@ -19,14 +19,15 @@ from iLimb import *
 from tactileboard import *
 from UR10 import *
 from threadhandler import ThreadHandler
-from scripts.pcd_io import save_point_cloud
+# from pcd_io import save_point_cloud
 from ur10_simulation import ur10_simulator
 
 MAPPING = {'index':3, 'thumb':4}
-THRESHOLD = {'index':0.08, 'thumb':0.08}
+THRESHOLD = {'index':0.1, 'thumb':0.08}
 
 """ Abstract class for storing state variables """
 class STATE:
+	ROTATION_ANGLE = 30
 	ROTATION_POS = 0 # 0,1,2,3
 	ROTATION_DIR = -1 # -1/1
 	
@@ -158,15 +159,15 @@ def rotate_hand():
 	ur10.read_joints()
 	joints = copy(ur10.joints)
 
-	if STATE.ROTATION_POS == 3:
+	if STATE.ROTATION_POS == 180//STATE.ROTATION_ANGLE - 1:
 		STATE.ROTATION_POS = 0
 		STATE.ROTATION_DIR *= -1
 	else:
-		joints[4] += 45 * STATE.ROTATION_DIR
+		joints[4] += STATE.ROTATION_ANGLE * STATE.ROTATION_DIR
 		STATE.ROTATION_POS += 1
-		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=60, constant_axis='z')
+		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=55, constant_axis='z')
 		ur10.movej(xyzR, 10)
-		time.sleep(10)
+		time.sleep(10.2)
 
 """ Function to move hand in vertical direction """
 def move_vertical():
@@ -176,7 +177,7 @@ def move_vertical():
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
 	new_joint_pos = np.array([x, y, z+10, rx, ry, rz])
 	ur10.movej(new_joint_pos, 1)
-	time.sleep(1)
+	time.sleep(1.2)
 
 """ Function to move hand away from the object """
 def move_away(fingers=['thumb', 'index']):
@@ -189,9 +190,9 @@ def move_to_base():
 	global ur10
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
-	new_joint_pos = np.array([x, y, -100, rx, ry, rz])
+	new_joint_pos = np.array([x, y, -160, rx, ry, rz])
 	ur10.movej(new_joint_pos, 1)
-	time.sleep(1)
+	time.sleep(1.2)
 
 # def move_to_rest() :
 # 	global iLimb
@@ -204,8 +205,8 @@ def main():
 	configure_handlers()
 	move_to_base()
 	cntr = 0
-	while cntr < 20:
-		for _ in range(4):
+	while cntr < 3:
+		for _ in range(180//STATE.ROTATION_ANGLE):
 			touched = close_hand()
 			time.sleep(0.1)
 			if touched:
@@ -219,8 +220,9 @@ def main():
 
 	# Convert collected points to a PCD file
 	pts = np.asarray(STATE.CONTACT_POINTS)
-	save_point_cloud(pts, 'run.pcd')
-	subprocess.check_call(['python', 'detect.py', '../save', 'run.pcd'])
+	np.savetxt('points.txt', pts)
+	# save_point_cloud(pts, 'run.pcd')
+	# subprocess.check_call(['python', 'detect.py', '../save', 'run.pcd'])
 
 if __name__ == '__main__':
 	main()
