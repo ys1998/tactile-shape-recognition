@@ -19,11 +19,11 @@ from iLimb import *
 from tactileboard import *
 from UR10 import *
 from threadhandler import ThreadHandler
-# from pcd_io import save_point_cloud
+from pcd_io import save_point_cloud
 from ur10_simulation import ur10_simulator
 
 MAPPING = {'index':3, 'thumb':4}
-THRESHOLD = {'index':0.1, 'thumb':0.08}
+THRESHOLD = {'index':0.31, 'thumb':0.16}
 
 """ Abstract class for storing state variables """
 class STATE:
@@ -34,6 +34,9 @@ class STATE:
 	CONTROL_POS = [0 for _ in range(5)]
 	NUM_POINTS = 0
 	CONTACT_POINTS = []
+	FINGER_POS = {'index':[], 'thumb':[]}
+	XYZR = []
+	UNIT_VECTOR = []
 
 # iLimb dimensions (mm)
 IDX_TO_BASE = 185
@@ -50,11 +53,11 @@ def init_handlers():
 	print('Initializing handlers ...')
 	ur10 = UR10Controller('10.1.1.6')
 	print('UR10 done.')
-	iLimb = iLimbController('COM17')
+	iLimb = iLimbController('/dev/ttyACM0')
 	iLimb.connect()
 	print('iLimb done.')
-	sensors = TactileBoard('COM59', _sensitivity=TBCONSTS.HIGH_SENS)
-	sensors.start()
+	sensors = TactileBoard('/dev/ttyACM1', _sensitivity=TBCONSTS.DEFAULT_SENS)
+	# sensors.start()
 	# Sleep
 	time.sleep(3)
 	print('TactileBoard done')
@@ -68,15 +71,16 @@ def configure_handlers():
 	UR10pose.moveUR(ur10,'home_j',5)
 
 	print('Setting iLimb to default pose ...')
-	iLimb.setPose('openHand')
+	iLimb.setPose('rest')
 	time.sleep(3)
-	iLimb.control(['thumbRotator'],['position'],[550])
-	time.sleep(1)
 	
 	print('Calibrating tactile sensors ...')
+	# sensors.startCalibration(500)
 	sensors.loadCalibration()
-	time.sleep(0.5)
+	time.sleep(2)
 	sensors.useCalib = True
+	sensors.start()
+	# sensors.stopCalibration()
 
 	time.sleep(3)
 	print('Done.')
@@ -96,6 +100,10 @@ def close_hand(fingers=['index', 'thumb']):
 			for i in range(len(fingerArray)):
 				if touched[i]:
 					STATE.CONTROL_POS[fingerArray[i][1]] = iLimb.controlPos
+					#----------------------------------------------------------
+					# Collect information
+					STATE.FINGER_POS[fingerArray[i][0]].append(iLimb.controlPos)
+					#----------------------------------------------------------
 
 			# Self-touching condition
 			if iLimb.controlPos > 500:
@@ -125,17 +133,16 @@ def compute_coordinates():
 	
 	# Find point of contact for index finger
 	control = STATE.CONTROL_POS[MAPPING['index']]
-	axis = 0; perp = 0
+	theta = 30 + 60/500 * control
+
 	if control < 210:
 		# Normal circular motion
-		theta = 60/210 * control
-		axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta + 20))
-		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta + 20))
+		rel_theta = 30
 	else:
-		theta = 145/500 * control
-		rel_theta = 160 - 70/290 * (control - 210)
-		axis = IDX_0 * np.cos(np.deg2rad(theta)) - IDX_1 * np.sin(np.deg2rad(90+theta-rel_theta))
-		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(90+theta-rel_theta))
+		rel_theta = 30 + 60/290 * (control - 210)
+
+	axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta+rel_theta))
+	perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta+rel_theta))
 	axis += IDX_TO_BASE
 	pt_1 = [axis * direction[0] + perp * direction[1] + xyzR[0],
 			-axis * direction[1] + perp * direction[0] + xyzR[1],
@@ -153,6 +160,12 @@ def compute_coordinates():
 	STATE.NUM_POINTS += 2
 	STATE.CONTACT_POINTS += [pt_1, pt_2]
 
+	#--------------------------------------------------
+	# Collect information
+	STATE.XYZR.append(xyzR)
+	STATE.UNIT_VECTOR.append(direction)
+	#--------------------------------------------------
+
 """ Function to rotate hand for next reading """
 def rotate_hand():
 	global ur10
@@ -166,8 +179,8 @@ def rotate_hand():
 		joints[4] += STATE.ROTATION_ANGLE * STATE.ROTATION_DIR
 		STATE.ROTATION_POS += 1
 		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=55, constant_axis='z')
-		ur10.movej(xyzR, 10)
-		time.sleep(10.2)
+		ur10.movej(xyzR, 5)
+		time.sleep(5.2)
 
 """ Function to move hand in vertical direction """
 def move_vertical():
@@ -187,12 +200,17 @@ def move_away(fingers=['thumb', 'index']):
 
 """ Function to move UR10 to base """
 def move_to_base():
-	global ur10
+	global ur10, iLimb
+	iLimb.setPose('openHand')
+	time.sleep(5)
+	iLimb.control(['thumbRotator'],['position'],[550])
+	time.sleep(3)
+	time.sleep(3)
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
 	new_joint_pos = np.array([x, y, -160, rx, ry, rz])
-	ur10.movej(new_joint_pos, 1)
-	time.sleep(1.2)
+	ur10.movej(new_joint_pos, 2)
+	time.sleep(2.2)
 
 # def move_to_rest() :
 # 	global iLimb
@@ -220,8 +238,11 @@ def main():
 
 	# Convert collected points to a PCD file
 	pts = np.asarray(STATE.CONTACT_POINTS)
-	np.savetxt('points.txt', pts)
-	# save_point_cloud(pts, 'run.pcd')
+	finger_pos = np.asarray([STATE.FINGER_POS['index'], STATE.FINGER_POS['thumb']])
+	np.savetxt('points.txt', finger_pos)
+	np.savetxt('xyzr.txt', np.asaray(STATE.XYZR))
+	np.savetxt('uv.txt', np.asarray(STATE.UNIT_VECTOR))
+	save_point_cloud(pts, 'run.pcd')
 	# subprocess.check_call(['python', 'detect.py', '../save', 'run.pcd'])
 
 if __name__ == '__main__':

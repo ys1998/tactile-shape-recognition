@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>230</width>
+    <height>636</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>iLimb GUI Control</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QGroupBox" name="gbSerial">
+        <property name="maximumSize">
+         <size>
+          <width>200</width>
+          <height>100</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>iLimb Serial Port Config</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout">
+         <item row="2" column="0">
+          <widget class="QPushButton" name="btnSerialConnect">
+           <property name="text">
+            <string>Connect</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QComboBox" name="cbSerialPort"/>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Port name</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="gbFingers">
+        <property name="maximumSize">
+         <size>
+          <width>200</width>
+          <height>500</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>iLimb Control Fingers</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="1">
+          <widget class="QComboBox" name="cbThumb"/>
+         </item>
+         <item row="9" column="0" colspan="3">
+          <widget class="QGroupBox" name="groupBox">
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>100</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>iLimb Poses</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_4">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Pose</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="cbPoses"/>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QPushButton" name="btnPoses">
+              <property name="text">
+               <string>Send Pose</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QComboBox" name="cbLittle"/>
+         </item>
+         <item row="3" column="1">
+          <widget class="QComboBox" name="cbRing"/>
+         </item>
+         <item row="5" column="0">
+          <widget class="QCheckBox" name="chThumbRotator">
+           <property name="text">
+            <string>thRotator</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="chThumb">
+           <property name="text">
+            <string>Thumb</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QComboBox" name="cbIndex"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="QComboBox" name="cbMiddle"/>
+         </item>
+         <item row="2" column="2">
+          <widget class="QSpinBox" name="spMiddle"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QCheckBox" name="chIndex">
+           <property name="text">
+            <string>Index</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QCheckBox" name="chMiddle">
+           <property name="text">
+            <string>Middle</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QCheckBox" name="chRing">
+           <property name="text">
+            <string>Ring</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QSpinBox" name="spIndex"/>
+         </item>
+         <item row="3" column="2">
+          <widget class="QSpinBox" name="spRing"/>
+         </item>
+         <item row="4" column="0">
+          <widget class="QCheckBox" name="chLittle">
+           <property name="text">
+            <string>Little</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="2">
+          <widget class="QSpinBox" name="spLittle"/>
+         </item>
+         <item row="5" column="1">
+          <widget class="QComboBox" name="cbThumbRotator"/>
+         </item>
+         <item row="5" column="2">
+          <widget class="QSpinBox" name="spThumbRotator"/>
+         </item>
+         <item row="6" column="1">
+          <widget class="QComboBox" name="cbWrist"/>
+         </item>
+         <item row="6" column="2">
+          <widget class="QSpinBox" name="spWrist"/>
+         </item>
+         <item row="0" column="2">
+          <widget class="QSpinBox" name="spThumb"/>
+         </item>
+         <item row="6" column="0">
+          <widget class="QCheckBox" name="chWrist">
+           <property name="text">
+            <string>Wrist</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0" colspan="3">
+          <widget class="QPushButton" name="btnControlFingers">
+           <property name="text">
+            <string>Send Control</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>230</width>
+     <height>21</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
