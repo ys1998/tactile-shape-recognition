@@ -17,12 +17,12 @@
 #-------------------------------------------------------------------------------
 #Paths
 import os, sys, glob
-sys.path.append('libraries/general')
-sys.path.append('libraries/iLimb')
-sys.path.append('libraries/UR10')
-sys.path.append('libraries/HDArray')
-sys.path.append('libraries/shape_recognition')
-sys.path.append('libraries/neuromorphic')
+sys.path.append('../shape_recognition/libraries/general')
+sys.path.append('../shape_recognition/libraries/iLimb')
+sys.path.append('../shape_recognition/libraries/UR10')
+sys.path.append('../shape_recognition/libraries/HDArray')
+sys.path.append('../shape_recognition/libraries/shape_recognition')
+sys.path.append('../shape_recognition/libraries/neuromorphic')
 #-------------------------------------------------------------------------------
 #PyQt libraries
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -45,7 +45,6 @@ from serialhandler import * #serial communication
 from UR10 import * #UR10 controller
 from iLimb import * #iLimb controller
 from hdnerarray import HDNerArray #Socket communication with the HD Neuromorphic tactile array
-# from template_matcher import find_class_orient_position #shape recognition
 from tactileboard import * #4x4 tactile board
 #-------------------------------------------------------------------------------
 #GUIs

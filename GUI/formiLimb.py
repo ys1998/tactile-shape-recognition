@@ -15,8 +15,8 @@
 '''
 #-------------------------------------------------------------------------------
 import os, sys, glob
-sys.path.append('libraries/general')
-sys.path.append('libraries/iLimb')
+sys.path.append('../shape_recognition/libraries/general')
+sys.path.append('../shape_recognition/libraries/iLimb')
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.uic import loadUiType

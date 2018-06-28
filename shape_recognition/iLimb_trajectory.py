@@ -1,21 +1,37 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-x1 = []; y1 = []
-x2 = []; y2 = []
-
-direction = [0.6, -0.8]
-IDX_TO_BASE = 185
-THB_TO_BASE = 105
+IDX_TO_BASE = 185 + 40
+THB_TO_BASE = 105 + 30
 IDX_0 = 50
-IDX_1 = 35
-IDX = 84
-THB = 80
-
+IDX_1 = 30
+THB = 65
 
 def get_coords(idx, thb, xyzr, uv):
 
+	x1 = []; y1 = []
+	x2 = []; y2 = []
+	helper_x = []
+	helper_y = []
+
+
 	for idx_control, thb_control, xyzR, direction in zip(idx, thb, xyzr, uv):
+		# x1 = []; y1 = []
+		# x2 = []; y2 = []
+		# helper_x = []
+		# helper_y = []	
+
+		# Calculate unit vector direction
+		dir_ang = np.arctan(abs(direction[1]/direction[0]))
+		if direction[0] < 0:
+			if direction[1] < 0:
+				dir_ang += np.pi
+			else:
+				dir_ang = np.pi - dir_ang
+		else:
+			if direction[1] < 0:
+				dir_ang = 2*np.pi - dir_ang
+
 		# Find point of contact for index finger
 		theta = 30 + 60/500 * idx_control
 		if idx_control < 210:
@@ -23,30 +39,36 @@ def get_coords(idx, thb, xyzr, uv):
 			rel_theta = 30
 		else:
 			rel_theta = 30 + 60/290 * (idx_control - 210)
-
+		# rel_theta = 30 + 60/500 * idx_control
 		axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta+rel_theta))
 		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta+rel_theta))
 		axis += IDX_TO_BASE
-		x1.append(axis * direction[0] + perp * direction[1] + xyzR[0])
-		y1.append(-axis * direction[1] + perp * direction[0] + xyzR[1])
+		x1.append(axis * np.cos(dir_ang) - perp * np.sin(dir_ang) + xyzR[0])
+		y1.append(axis * np.sin(dir_ang) + perp * np.cos(dir_ang) + xyzR[1])
 
 		# Find point of contact for thumb
 		theta = 90 * (1 - thb_control/500)
 		axis = THB * np.cos(np.deg2rad(theta)) + THB_TO_BASE
 		perp = THB * np.sin(np.deg2rad(theta))
-		x2.append(axis * direction[0] + perp * direction[1] + xyzR[0])
-		y2.append(-axis * direction[1] + perp * direction[0] + xyzR[1])
+		x2.append(axis * np.cos(dir_ang) - perp * np.sin(dir_ang) + xyzR[0])
+		y2.append(axis * np.sin(dir_ang) + perp * np.cos(dir_ang) + xyzR[1])
+
+		helper_x.extend([xyzR[0], xyzR[0]+50*direction[0]])
+		helper_y.extend([xyzR[1], xyzR[1]+50*direction[1]])
+		print(direction, axis, perp)
 
 	# Plot trajectory/points
 	plt.figure()
+	# plt.plot(helper_x, helper_y)
 	plt.scatter(x1, y1)
 	plt.scatter(x2, y2)
+	plt.axes().set_aspect('equal', 'datalim')
 	plt.show()
 
 if __name__ == '__main__':
-	get_coords(
-				idx=list(range(500)), 
-				thb=list(range(500)),
-				xyzr=[],
-				uv=[]
-				)
+	pts = np.loadtxt('controlpos.txt')
+	idx = pts[0]; thb = pts[1]
+	xyzr = np.loadtxt('xyzr.txt')
+	uv = np.loadtxt('uv.txt')
+	# get_coords(idx[:len(idx)//3], thb[:len(thb)//3], xyzr[:len(xyzr)//3], uv[:len(uv)//3])
+	get_coords(idx, thb, xyzr, uv)

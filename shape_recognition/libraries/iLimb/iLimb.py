@@ -215,14 +215,14 @@ class iLimbController:
 				#not all fingers have made contact
 				if flagTouch.count(True) < len(fingerArray):
 					self.control(ftouch,['position']*len(ftouch),[self.controlPos]*len(ftouch))
-					self.controlPos += 4
+					self.controlPos += 3
 				else:
 					print('Contact made.')
 					self.ControlPinchTouchFinished = True
 				
 			self.controlSampleCounter = 0
 			self.forceList = [[] for x in range(5)]
-			time.sleep(0.07)                
+			time.sleep(0.01)                
 		else:
 			self.controlSampleCounter += 1
 

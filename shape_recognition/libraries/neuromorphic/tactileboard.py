@@ -277,7 +277,7 @@ class TactileBoard():
                 listdata.append(copy(slipSensor))
                 self.dataQueue.append(copy(listdata))
             else: #default -- no slip sensor
-                self.dataQueue.append(copy(self.tactileSensors)) # CHANGED HERE
+                self.dataQueue = deque([copy(self.tactileSensors)])
             self.thProcLock.release()
 
         time.sleep(0.001) #necessary to prevent really fast thread access

@@ -23,7 +23,7 @@ from pcd_io import save_point_cloud
 from ur10_simulation import ur10_simulator
 
 MAPPING = {'index':3, 'thumb':4}
-THRESHOLD = {'index':0.31, 'thumb':0.16}
+THRESHOLD = {'index':0.023, 'thumb':0.023}
 
 """ Abstract class for storing state variables """
 class STATE:
@@ -31,20 +31,19 @@ class STATE:
 	ROTATION_POS = 0 # 0,1,2,3
 	ROTATION_DIR = -1 # -1/1
 	
-	CONTROL_POS = [0 for _ in range(5)]
 	NUM_POINTS = 0
 	CONTACT_POINTS = []
+	CONTROL_POS = [0 for _ in range(5)]
 	FINGER_POS = {'index':[], 'thumb':[]}
 	XYZR = []
 	UNIT_VECTOR = []
 
 # iLimb dimensions (mm)
-IDX_TO_BASE = 185
-THB_TO_BASE = 105
+IDX_TO_BASE = 185 + 40
+THB_TO_BASE = 105 + 30
 IDX_0 = 50
-IDX_1 = 35
-IDX = 84
-THB = 80
+IDX_1 = 30
+THB = 65
 
 """ Function to initialize handler objects """
 def init_handlers():
@@ -75,12 +74,12 @@ def configure_handlers():
 	time.sleep(3)
 	
 	print('Calibrating tactile sensors ...')
-	# sensors.startCalibration(500)
-	sensors.loadCalibration()
-	time.sleep(2)
-	sensors.useCalib = True
 	sensors.start()
-	# sensors.stopCalibration()
+	sensors.startCalibration(500)
+	# sensors.loadCalibration()
+	time.sleep(2)
+	sensors.stopCalibration()
+	sensors.useCalib = True
 
 	time.sleep(3)
 	print('Done.')
@@ -89,6 +88,7 @@ def configure_handlers():
 def close_hand(fingers=['index', 'thumb']):
 	global iLimb, sensors
 	touched = [False] * len(fingers)
+	touched_once = False
 	fingerArray = [[x, MAPPING[x], THRESHOLD[x]] for x in fingers]
 	while not all(touched):
 		time.sleep(0.005)
@@ -99,6 +99,7 @@ def close_hand(fingers=['index', 'thumb']):
 			# update control_pos for fingers that have touched a surface
 			for i in range(len(fingerArray)):
 				if touched[i]:
+					touched_once = True
 					STATE.CONTROL_POS[fingerArray[i][1]] = iLimb.controlPos
 					#----------------------------------------------------------
 					# Collect information
@@ -106,8 +107,17 @@ def close_hand(fingers=['index', 'thumb']):
 					#----------------------------------------------------------
 
 			# Self-touching condition
-			if iLimb.controlPos > 500:
+			# Can be modified later
+			if iLimb.controlPos > 250 and not touched_once:
 				return False
+			elif iLimb.controlPos > 250 and touched_once:
+				for i in range(len(fingerArray)):
+					if not touched[i]:
+						#----------------------------------------------------------
+						# Collect information
+						STATE.FINGER_POS[fingerArray[i][0]].append(-1)
+						#----------------------------------------------------------
+				return True
 
 			if all(touched):
 				return True
@@ -127,38 +137,54 @@ def compute_coordinates():
 	initial_pos = sim.joints2pose()
 	tm, rm = sim.get_Translation_and_Rotation_Matrix()
 	# Calculate the direction in which the end effector is pointing
-	# value corresponding to z-direction is ignored
+	# aVlue corresponding to z-direction is ignored
 	direction = rm[:2,2] # x and y direction vector only
 	direction /= np.linalg.norm(direction)
 	
-	# Find point of contact for index finger
-	control = STATE.CONTROL_POS[MAPPING['index']]
-	theta = 30 + 60/500 * control
-
-	if control < 210:
-		# Normal circular motion
-		rel_theta = 30
+	# Calculate unit vector direction
+	dir_ang = np.arctan(abs(direction[1]/direction[0]))
+	if direction[0] < 0:
+		if direction[1] < 0:
+			dir_ang += np.pi
+		else:
+			dir_ang = np.pi - dir_ang
 	else:
-		rel_theta = 30 + 60/290 * (control - 210)
+		if direction[1] < 0:
+			dir_ang = 2*np.pi - dir_ang
 
-	axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta+rel_theta))
-	perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta+rel_theta))
-	axis += IDX_TO_BASE
-	pt_1 = [axis * direction[0] + perp * direction[1] + xyzR[0],
-			-axis * direction[1] + perp * direction[0] + xyzR[1],
-			xyzR[2]]
+	# Find point of contact for index finger
+	idx_control = STATE.CONTROL_POS[MAPPING['index']]
+	if idx_control > 0:
+		theta = 30 + 60/500 * idx_control
+		if idx_control < 210:
+			# Normal circular motion
+			rel_theta = 30
+		else:
+			rel_theta = 30 + 60/290 * (idx_control - 210)
+		# rel_theta = 30 + 60/500 * idx_control
+		axis = IDX_0 * np.cos(np.deg2rad(theta)) + IDX_1 * np.cos(np.deg2rad(theta+rel_theta))
+		perp = IDX_0 * np.sin(np.deg2rad(theta)) + IDX_1 * np.sin(np.deg2rad(theta+rel_theta))
+		axis += IDX_TO_BASE
+			
+		pt_1 = [axis * np.cos(dir_ang) - perp * np.sin(dir_ang) + xyzR[0],
+				axis * np.sin(dir_ang) + perp * np.cos(dir_ang) + xyzR[1],
+				xyzR[2]]
+		STATE.NUM_POINTS += 1
+		STATE.CONTACT_POINTS.append(pt_1)
 
 	# Find point of contact for thumb
-	control = STATE.CONTROL_POS[MAPPING['thumb']]
-	theta = 90 * (1 - control/500)
-	axis = THB * np.cos(np.deg2rad(theta)) + THB_TO_BASE
-	perp = THB * np.sin(np.deg2rad(theta))
-	pt_2 = [axis * direction[0] + perp * direction[1] + xyzR[0],
-			-axis * direction[1] + perp * direction[0] + xyzR[1],
-			xyzR[2]]
+	thb_control = STATE.CONTROL_POS[MAPPING['thumb']]
+	if thb_control > 0:
+		theta = 90 * (1 - thb_control/500)
+		axis = THB * np.cos(np.deg2rad(theta)) + THB_TO_BASE
+		perp = THB * np.sin(np.deg2rad(theta))
 
-	STATE.NUM_POINTS += 2
-	STATE.CONTACT_POINTS += [pt_1, pt_2]
+		pt_2 = [axis * np.cos(dir_ang) - perp * np.sin(dir_ang) + xyzR[0],
+				axis * np.sin(dir_ang) + perp * np.cos(dir_ang) + xyzR[1],
+				xyzR[2]]
+
+		STATE.NUM_POINTS += 1
+		STATE.CONTACT_POINTS.append(pt_2)
 
 	#--------------------------------------------------
 	# Collect information
@@ -178,9 +204,9 @@ def rotate_hand():
 	else:
 		joints[4] += STATE.ROTATION_ANGLE * STATE.ROTATION_DIR
 		STATE.ROTATION_POS += 1
-		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=55, constant_axis='z')
-		ur10.movej(xyzR, 5)
-		time.sleep(5.2)
+		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=60, constant_axis='z')
+		ur10.movej(xyzR, 3)
+		time.sleep(3.2)
 
 """ Function to move hand in vertical direction """
 def move_vertical():
@@ -189,8 +215,8 @@ def move_vertical():
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
 	new_joint_pos = np.array([x, y, z+10, rx, ry, rz])
-	ur10.movej(new_joint_pos, 1)
-	time.sleep(1.2)
+	ur10.movej(new_joint_pos, 0.5)
+	time.sleep(0.7)
 
 """ Function to move hand away from the object """
 def move_away(fingers=['thumb', 'index']):
@@ -199,51 +225,54 @@ def move_away(fingers=['thumb', 'index']):
 	time.sleep(1)
 
 """ Function to move UR10 to base """
-def move_to_base():
-	global ur10, iLimb
-	iLimb.setPose('openHand')
-	time.sleep(5)
-	iLimb.control(['thumbRotator'],['position'],[550])
-	time.sleep(3)
-	time.sleep(3)
+def move_to_base(t=1):
+	global ur10
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
-	new_joint_pos = np.array([x, y, -160, rx, ry, rz])
-	ur10.movej(new_joint_pos, 2)
-	time.sleep(2.2)
-
-# def move_to_rest() :
-# 	global iLimb
-# 	iLimb.setPose('rest')
-# 	time.sleep(1)
+	new_joint_pos = np.array([x, y, -200, rx, ry, rz])
+	ur10.movej(new_joint_pos, t)
+	time.sleep(t+.2)
 
 def main():
 	global ur10, iLimb, sensors
 	init_handlers()
 	configure_handlers()
-	move_to_base()
-	cntr = 0
-	while cntr < 3:
-		for _ in range(180//STATE.ROTATION_ANGLE):
+
+	iLimb.setPose('openHand')
+	time.sleep(3)
+	iLimb.control(['thumbRotator'],['position'],[700])
+	time.sleep(3)
+	
+	move_to_base(t=5)
+	height = 0
+	estimated_height = 200
+
+	for _ in range(180//STATE.ROTATION_ANGLE):
+		while height < estimated_height:
 			touched = close_hand()
 			time.sleep(0.1)
 			if touched:
 				compute_coordinates()
+			else:
+				estimated_height = height
 			iLimb.resetControl()
 			time.sleep(0.5)
 			move_away()
-			rotate_hand()
-		move_vertical()
-		cntr += 1
+			move_vertical()
+			height += 10
+		move_to_base()
+		height = 0
+		estimated_height = 200
+		rotate_hand()
 
 	# Convert collected points to a PCD file
 	pts = np.asarray(STATE.CONTACT_POINTS)
-	finger_pos = np.asarray([STATE.FINGER_POS['index'], STATE.FINGER_POS['thumb']])
-	np.savetxt('points.txt', finger_pos)
-	np.savetxt('xyzr.txt', np.asaray(STATE.XYZR))
-	np.savetxt('uv.txt', np.asarray(STATE.UNIT_VECTOR))
+	# finger_pos = np.asarray([STATE.FINGER_POS['index'], STATE.FINGER_POS['thumb']])
+	# np.savetxt('controlpos.txt', finger_pos)
+	# np.savetxt('xyzr.txt', np.asarray(STATE.XYZR))
+	# np.savetxt('uv.txt', np.asarray(STATE.UNIT_VECTOR))
 	save_point_cloud(pts, 'run.pcd')
-	# subprocess.check_call(['python', 'detect.py', '../save', 'run.pcd'])
+	subprocess.check_call(['python', 'detect.py', 'save/', 'run.pcd'])
 
 if __name__ == '__main__':
 	main()
