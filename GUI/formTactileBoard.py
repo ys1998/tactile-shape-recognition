@@ -45,6 +45,7 @@ from serialhandler import * #serial communication
 from UR10 import * #UR10 controller
 from iLimb import * #iLimb controller
 from hdnerarray import HDNerArray #Socket communication with the HD Neuromorphic tactile array
+# from template_matcher import find_class_orient_position #shape recognition
 from tactileboard import * #4x4 tactile board
 #-------------------------------------------------------------------------------
 #GUIs

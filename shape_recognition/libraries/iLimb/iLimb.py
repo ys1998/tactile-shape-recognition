@@ -222,7 +222,7 @@ class iLimbController:
 				
 			self.controlSampleCounter = 0
 			self.forceList = [[] for x in range(5)]
-			time.sleep(0.01)                
+			time.sleep(0.04)                
 		else:
 			self.controlSampleCounter += 1
 

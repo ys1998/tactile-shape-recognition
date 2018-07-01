@@ -22,8 +22,8 @@ from threadhandler import ThreadHandler
 from pcd_io import save_point_cloud
 from ur10_simulation import ur10_simulator
 
-MAPPING = {'index':3, 'thumb':4}
-THRESHOLD = {'index':0.023, 'thumb':0.023}
+MAPPING = {'index':2, 'thumb':4, 'ring':3}
+THRESHOLD = {'index':0.01, 'thumb':0.01, 'ring':0.01}
 
 """ Abstract class for storing state variables """
 class STATE:
@@ -34,7 +34,7 @@ class STATE:
 	NUM_POINTS = 0
 	CONTACT_POINTS = []
 	CONTROL_POS = [0 for _ in range(5)]
-	FINGER_POS = {'index':[], 'thumb':[]}
+	FINGER_POS = {'index':[], 'thumb':[], 'ring':[]}
 	XYZR = []
 	UNIT_VECTOR = []
 
@@ -76,12 +76,11 @@ def configure_handlers():
 	print('Calibrating tactile sensors ...')
 	sensors.start()
 	sensors.startCalibration(500)
-	# sensors.loadCalibration()
 	time.sleep(2)
 	sensors.stopCalibration()
 	sensors.useCalib = True
-
-	time.sleep(3)
+	sensors.loadCalibration()
+	time.sleep(1)
 	print('Done.')
 
 """ Function to close fingers until all fingers touch surface """
@@ -108,9 +107,9 @@ def close_hand(fingers=['index', 'thumb']):
 
 			# Self-touching condition
 			# Can be modified later
-			if iLimb.controlPos > 250 and not touched_once:
+			if iLimb.controlPos > 500 and not touched_once:
 				return False
-			elif iLimb.controlPos > 250 and touched_once:
+			elif iLimb.controlPos > 500 and touched_once:
 				for i in range(len(fingerArray)):
 					if not touched[i]:
 						#----------------------------------------------------------
@@ -134,8 +133,8 @@ def compute_coordinates():
 	joints = copy(ur10.joints)
 	sim = ur10_simulator()
 	sim.set_joints(joints)
-	initial_pos = sim.joints2pose()
-	tm, rm = sim.get_Translation_and_Rotation_Matrix()
+	_ = sim.joints2pose()
+	_, rm = sim.get_Translation_and_Rotation_Matrix()
 	# Calculate the direction in which the end effector is pointing
 	# aVlue corresponding to z-direction is ignored
 	direction = rm[:2,2] # x and y direction vector only
@@ -249,7 +248,7 @@ def main():
 
 	for _ in range(180//STATE.ROTATION_ANGLE):
 		while height < estimated_height:
-			touched = close_hand()
+			touched = close_hand(['thumb', 'index', 'ring'])
 			time.sleep(0.1)
 			if touched:
 				compute_coordinates()

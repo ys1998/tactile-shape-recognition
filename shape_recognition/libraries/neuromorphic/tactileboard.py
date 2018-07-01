@@ -67,6 +67,8 @@ class TBCONSTS:
     CALIBRATION_ONGOING = 0x01
     CALIBRATION_FINISHED = 0x02
     #---------------------------------------------------------------------------
+    SAMPFREQ = 600 #Hz
+    #---------------------------------------------------------------------------
     #ROW_IDX = [1,0,3,2]
     ROW_IDX = [0,1,2,3]
     #---------------------------------------------------------------------------
@@ -89,7 +91,7 @@ class TactileBoard():
         #moving average for all taxels of each tactile sensor patch
         self.mva = [[] for k in range(TBCONSTS.NPATCH*TBCONSTS.NROWS*TBCONSTS.NCOLS)]
         for k in range(len(self.mva)):
-            self.mva[k] = copy(MovingAverage(_windowSize = 5, _sampfreq = 600)) #10 Hz cut-off frequency
+            self.mva[k] = copy(MovingAverage(_windowSize = 5)) #10 Hz cut-off frequency
         self.taxelCounter = 0 #counter for moving average across all taxels
         #matrix for storing previous values --> necessary for integrate and fire spikes
         self.prevTactile = np.zeros((TBCONSTS.NPATCH,TBCONSTS.NROWS,TBCONSTS.NCOLS),dtype=float)
@@ -129,7 +131,8 @@ class TactileBoard():
     #each line (patch) contains 16 values (taxels) arranged with respect to
     #columns
     def loadCalibration(self):
-        filepath = 'tactileboard_' + self.port + '_calib.cfg'
+        strport = ''.join([x for x in self.port if x is not '/'])
+        filepath = 'tactileboard_' + strport + '_calib.cfg'
         #check if file exists
         if os.path.isfile(filepath):
             #load the file
@@ -151,7 +154,8 @@ class TactileBoard():
     #saves the calibration result to a text file
     def saveCalibration(self):
         try:
-            filepath = 'tactileboard_' + self.port + '_calib.cfg'
+            strport = ''.join([x for x in self.port if x is not '/'])
+            filepath = 'tactileboard_' + strport + '_calib.cfg'
             filehandler = open(filepath,'w')
             for n in range(TBCONSTS.NPATCH):
                 strline = ''
@@ -214,8 +218,8 @@ class TactileBoard():
         for k in range(n):
             data = q.popleft()
             data = data[2:] + data[0:2]
-            
             for z in range(0,160,2):
+
                 patchNum = int((z/2)%TBCONSTS.NPATCH)
                 row = int((z/2)%(TBCONSTS.NROWS*TBCONSTS.NPATCH)//TBCONSTS.NPATCH)
                 row = TBCONSTS.ROW_IDX[row]
@@ -277,7 +281,7 @@ class TactileBoard():
                 listdata.append(copy(slipSensor))
                 self.dataQueue.append(copy(listdata))
             else: #default -- no slip sensor
-                self.dataQueue = deque([copy(self.tactileSensors)])
+                self.dataQueue.append(copy(self.tactileSensors))
             self.thProcLock.release()
 
         time.sleep(0.001) #necessary to prevent really fast thread access
