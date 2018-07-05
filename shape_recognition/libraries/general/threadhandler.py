@@ -28,6 +28,8 @@ class ThreadHandler():
 			self.thread.start()
 			self.isAlive = True
 			self.flagPause = False
+		else:
+			self.resume()
 
 	def pause(self):
 		if(self.isAlive & self.isPaused == False):

@@ -184,10 +184,12 @@ class iLimbController:
 		flagPower = [False]*len(fingerArray)
 		ftouch = [] #which fingers to move for touch
 		fpower = [] #which fingers to move for power grasp
-		
+		bgVal = [] #list to store the 'background' values of taxels
+
 		#add the force frame from the tactile array
 		for k in range(len(fingerArray)):
 			self.forceList[k].append(tactileArray[fingerArray[k][1]])
+			bgVal.append(np.mean(np.stack(self.forceList[k])))
 	   
 		if self.controlSampleCounter >= numberSamples:
 			if self.ControlPinchTouchFinished is False:
@@ -204,13 +206,13 @@ class iLimbController:
 					#take the average of this taxel over all frames
 					meanv.append(np.mean(taxelValues))
 					#check if the finger has made contact
-					if meanv[k] > fingerArray[k][2]:
+					if meanv[k] - bgVal[k] > fingerArray[k][2]:
 						flagTouch[k] = True
 						#ftouch.append(fingerArray[k][0])
 					else:
 						ftouch.append(fingerArray[k][0])
 
-				print(meanv)
+				print('mean force', meanv)
 
 				#not all fingers have made contact
 				if flagTouch.count(True) < len(fingerArray):

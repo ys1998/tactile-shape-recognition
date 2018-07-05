@@ -6,4 +6,5 @@ save/*/*.pcd
 save/*/*.vtk
 save/*/*.png
 data.npy
-labels.npy
+labels.np
+*.pyc

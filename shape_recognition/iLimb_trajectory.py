@@ -11,16 +11,12 @@ def get_coords(idx, thb, xyzr, uv):
 
 	x1 = []; y1 = []
 	x2 = []; y2 = []
+	z = []
 	helper_x = []
 	helper_y = []
 
 
 	for idx_control, thb_control, xyzR, direction in zip(idx, thb, xyzr, uv):
-		# x1 = []; y1 = []
-		# x2 = []; y2 = []
-		# helper_x = []
-		# helper_y = []	
-
 		# Calculate unit vector direction
 		dir_ang = np.arctan(abs(direction[1]/direction[0]))
 		if direction[0] < 0:
@@ -55,15 +51,11 @@ def get_coords(idx, thb, xyzr, uv):
 
 		helper_x.extend([xyzR[0], xyzR[0]+50*direction[0]])
 		helper_y.extend([xyzR[1], xyzR[1]+50*direction[1]])
-		print(direction, axis, perp)
+		# print(direction, axis, perp)
+		z.append(xyzR[2])
 
-	# Plot trajectory/points
-	plt.figure()
-	# plt.plot(helper_x, helper_y)
-	plt.scatter(x1, y1)
-	plt.scatter(x2, y2)
-	plt.axes().set_aspect('equal', 'datalim')
-	plt.show()
+	return x1, y1, z, x2, y2, z
+	
 
 if __name__ == '__main__':
 	pts = np.loadtxt('controlpos.txt')
@@ -71,4 +63,11 @@ if __name__ == '__main__':
 	xyzr = np.loadtxt('xyzr.txt')
 	uv = np.loadtxt('uv.txt')
 	# get_coords(idx[:len(idx)//3], thb[:len(thb)//3], xyzr[:len(xyzr)//3], uv[:len(uv)//3])
-	get_coords(idx, thb, xyzr, uv)
+	x1, y1, _, x2, y2, _ = get_coords(idx, thb, xyzr, uv)
+	# Plot trajectory/points
+	plt.figure()
+	# plt.plot(helper_x, helper_y)
+	plt.scatter(x1, y1)
+	plt.scatter(x2, y2)
+	plt.axes().set_aspect('equal', 'datalim')
+	plt.show()

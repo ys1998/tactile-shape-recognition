@@ -19,7 +19,7 @@ Three stage process (parameters used aren't tuned):
 NOTE: Changed the reconstruction algorithm to ConcaveHull for dealing with
 lower number of data points better.
 """
-def render3D(model_path, algo=1, stage=3, show=True):
+def render3D(model_path, stage=2, show=True):
     if not os.path.exists(model_path):
         print("Invalid path!")
         exit(1)

@@ -14,6 +14,7 @@ sys.path.append('../scripts')
 
 import os, subprocess, time
 import numpy as np
+from copy import copy
 # import tensorflow as tf
 from iLimb import *
 from tactileboard import *
@@ -22,8 +23,9 @@ from threadhandler import ThreadHandler
 from pcd_io import save_point_cloud
 from ur10_simulation import ur10_simulator
 
-MAPPING = {'index':2, 'thumb':4, 'ring':3}
-THRESHOLD = {'index':0.01, 'thumb':0.01, 'ring':0.01}
+MAPPING = {'index':2, 'thumb':4}
+THRESHOLD = {'index':0.01, 'thumb':0.01}
+ur10 = sensors = iLimb = None
 
 """ Abstract class for storing state variables """
 class STATE:
@@ -34,9 +36,11 @@ class STATE:
 	NUM_POINTS = 0
 	CONTACT_POINTS = []
 	CONTROL_POS = [0 for _ in range(5)]
-	FINGER_POS = {'index':[], 'thumb':[], 'ring':[]}
+	FINGER_POS = {'index':[], 'thumb':[]}
 	XYZR = []
 	UNIT_VECTOR = []
+
+	STOP = False
 
 # iLimb dimensions (mm)
 IDX_TO_BASE = 185 + 40
@@ -44,6 +48,15 @@ THB_TO_BASE = 105 + 30
 IDX_0 = 50
 IDX_1 = 30
 THB = 65
+
+""" Function to clear all collected values """
+def reset_stored_values():
+	STATE.NUM_POINTS = 0
+	STATE.CONTACT_POINTS = []
+	STATE.CONTROL_POS = [0 for _ in range(5)]
+	STATE.FINGER_POS = {'index':[], 'thumb':[]}
+	STATE.XYZR = []
+	STATE.UNIT_VECTOR = []
 
 """ Function to initialize handler objects """
 def init_handlers():
@@ -61,26 +74,43 @@ def init_handlers():
 	time.sleep(3)
 	print('TactileBoard done')
 
-""" Function to set all handlers to default configuration """
-def configure_handlers():
-	global ur10, iLimb, sensors
+""" Functions to set all handlers to default configuration """
+def move_to_home():
+	global ur10
 	print('Setting UR10 to default position ...')
 	UR10pose = URPoseManager()
 	UR10pose.load('shape_recog_home.urpose')
 	UR10pose.moveUR(ur10,'home_j',5)
-
+	
+def move_iLimb_to_rest():
+	global iLimb
 	print('Setting iLimb to default pose ...')
 	iLimb.setPose('rest')
-	time.sleep(3)
+	time.sleep(3)	
 	
-	print('Calibrating tactile sensors ...')
+def start_sensors():
+	global sensors
 	sensors.start()
+
+def stop_sensors():
+	global sensors
+	sensors.stop()
+
+def calibrate_sensors():
+	global sensors
+	print('Calibrating tactile sensors ...')
+	start_sensors()
 	sensors.startCalibration(500)
 	time.sleep(2)
 	sensors.stopCalibration()
 	sensors.useCalib = True
 	sensors.loadCalibration()
 	time.sleep(1)
+
+def configure_handlers():
+	move_to_home()
+	move_iLimb_to_rest()
+	calibrate_sensors()
 	print('Done.')
 
 """ Function to close fingers until all fingers touch surface """
@@ -191,29 +221,50 @@ def compute_coordinates():
 	STATE.UNIT_VECTOR.append(direction)
 	#--------------------------------------------------
 
-""" Function to rotate hand for next reading """
-def rotate_hand():
+""" Functions to rotate hand for next reading """
+def rotate_hand_CW():
 	global ur10
 	ur10.read_joints()
 	joints = copy(ur10.joints)
 
-	if STATE.ROTATION_POS == 180//STATE.ROTATION_ANGLE - 1:
-		STATE.ROTATION_POS = 0
-		STATE.ROTATION_DIR *= -1
-	else:
-		joints[4] += STATE.ROTATION_ANGLE * STATE.ROTATION_DIR
+	if STATE.ROTATION_POS > 0 :
+		STATE.ROTATION_POS -= 1
+		joints[4] += STATE.ROTATION_ANGLE * -1
+		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=60, constant_axis='z')
+		ur10.movej(xyzR, 3)
+		time.sleep(3.2)
+	
+def rotate_hand_CCW():
+	global ur10
+	ur10.read_joints()
+	joints = copy(ur10.joints)
+
+	if STATE.ROTATION_POS < 180//STATE.ROTATION_ANGLE - 1:
 		STATE.ROTATION_POS += 1
+		joints[4] += STATE.ROTATION_ANGLE * 1
 		xyzR = ur10.move_joints_with_grasp_constraints(joints, dist_pivot=220, grasp_pivot=60, constant_axis='z')
 		ur10.movej(xyzR, 3)
 		time.sleep(3.2)
 
+def rotate_hand():
+	# Boundary checks
+	if STATE.ROTATION_POS == 0 and STATE.ROTATION_DIR == -1:
+		STATE.ROTATION_DIR = 1
+	if STATE.ROTATION_POS == 180//STATE.ROTATION_ANGLE - 1 and STATE.ROTATION_DIR == 1:
+		STATE.ROTATION_DIR = -1
+	# Rotate the hand according to direction
+	if STATE.ROTATION_DIR == 1:
+		rotate_hand_CCW()
+	else:
+		rotate_hand_CW()
+
 """ Function to move hand in vertical direction """
-def move_vertical():
+def move_vertical(_dir=1):
 	global ur10
 	# move one step up while palpating
 	ur10.read_joints_and_xyzR()
 	x, y, z, rx, ry, rz = copy(ur10.xyzR)
-	new_joint_pos = np.array([x, y, z+10, rx, ry, rz])
+	new_joint_pos = np.array([x, y, z+10*_dir, rx, ry, rz])
 	ur10.movej(new_joint_pos, 0.5)
 	time.sleep(0.7)
 
@@ -232,6 +283,11 @@ def move_to_base(t=1):
 	ur10.movej(new_joint_pos, t)
 	time.sleep(t+.2)
 
+""" Function to break out of main loop """
+def break_main():
+	STATE.STOP = True
+
+""" Main function """
 def main():
 	global ur10, iLimb, sensors
 	init_handlers()
@@ -248,7 +304,12 @@ def main():
 
 	for _ in range(180//STATE.ROTATION_ANGLE):
 		while height < estimated_height:
-			touched = close_hand(['thumb', 'index', 'ring'])
+			# Break condition
+			if STATE.STOP:
+				STATE.STOP = False
+				return
+
+			touched = close_hand(['thumb', 'index'])
 			time.sleep(0.1)
 			if touched:
 				compute_coordinates()

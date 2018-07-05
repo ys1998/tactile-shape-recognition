@@ -11,9 +11,9 @@ from vcnn import vCNN
 from shutil import rmtree
 
 from preprocess import LABELS
-SHAPE = {v:k for k,v in LABELS.items()}
 
 def detect_shape(sess, model, filepath):
+	SHAPE = {v:k for k,v in LABELS.items()}
 	# 'filepath' is the path to the PCD file
 	path = os.path.relpath(filepath, '../scripts')
 	subprocess.check_call(['python', 'extract_pov.py', path, '.temp'], cwd='../scripts')

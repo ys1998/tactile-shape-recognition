@@ -49,11 +49,11 @@ class TBCONSTS:
     #---------------------------------------------------------------------------
     #Hardware parameters
     #Number of rows in the tactile sensor
-    NROWS = 4
+    NROWS = 1
     #Number of columns in the tactile sensor
-    NCOLS = 4
+    NCOLS = 1
     #Number of tactile patches in the main board
-    NPATCH = 5
+    NPATCH = 2
     #---------------------------------------------------------------------------
     #sensitivity
     #---------------------------------------------------------------------------
@@ -75,15 +75,15 @@ class TBCONSTS:
 #-------------------------------------------------------------------------------
 class TactileBoard():
     def __init__(self,_port='COM3',_flagSpike=False,_sensitivity=TBCONSTS.HIGH_SENS):
-        self.NROWS = 4 #number of rows
-        self.NCOLS = 4 #number of columns
-        self.NPATCH = 5 #number of sensors
+        self.NROWS = 1 #number of rows
+        self.NCOLS = 1 #number of columns
+        self.NPATCH = 2 #number of sensors
         self.port = _port #port name
         self.dataQueue = deque() #data queue
         self.thAcqLock = Lock() #lock for data acquisition
         self.thProcLock = Lock() #lock for data processing
         #serial handler for receiving data
-        self.serialHandler = SerialHandler(self.port,7372800,_header=0x24,_end=0x21,_numDataBytes=162,_thLock=self.thAcqLock)
+        self.serialHandler = SerialHandler(self.port,7372800,_header=0x24,_end=0x21,_numDataBytes=4,_thLock=self.thAcqLock)
         #thread for receiving packages
         self.thAcq = ThreadHandler(self.serialHandler.readPackage)
         #thread for processing the packages
@@ -137,6 +137,9 @@ class TactileBoard():
         if os.path.isfile(filepath):
             #load the file
             self.calibValues = np.loadtxt(filepath)
+            if len(self.calibValues.shape) == 1:
+                # 1D array
+                self.calibValues = self.calibValues.reshape([-1, 1])
             #calibration matrix
             #list containing 4x4 matrices
             self.calibMatrix = [np.zeros((TBCONSTS.NROWS,TBCONSTS.NCOLS)) for k in range(TBCONSTS.NPATCH)]
@@ -217,8 +220,8 @@ class TactileBoard():
 
         for k in range(n):
             data = q.popleft()
-            data = data[2:] + data[0:2]
-            for z in range(0,160,2):
+            # data = data[2:] + data[0:2]
+            for z in range(0,4,2):
 
                 patchNum = int((z/2)%TBCONSTS.NPATCH)
                 row = int((z/2)%(TBCONSTS.NROWS*TBCONSTS.NPATCH)//TBCONSTS.NPATCH)
@@ -265,7 +268,7 @@ class TactileBoard():
                     #print(self.tempCalib[patchNum]) #debugging
 
             #slip sensor data
-            slipSensor = (data[160]<<8 | data[161]) * (3.3/4096)
+            # slipSensor = (data[160]<<8 | data[161]) * (3.3/4096)
             #print('slip sensor', slipSensor) #debugging
 
             self.thProcLock.acquire()
@@ -284,6 +287,7 @@ class TactileBoard():
                 self.dataQueue.append(copy(self.tactileSensors))
             self.thProcLock.release()
 
+        # print(self.dataQueue)
         time.sleep(0.001) #necessary to prevent really fast thread access
 
     #returns the data queue
