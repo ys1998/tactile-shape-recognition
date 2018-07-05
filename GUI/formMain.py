@@ -68,6 +68,14 @@ class STATE:
 	ESTIMATED_HEIGHT = 200
 	STARTED = False
 
+class port:
+	def __init__(self, widget):
+		self.view = widget
+	def write(self, *args):
+		self.view.append(*args)
+	def flush(self, *args):
+		pass
+
 """ Main class for controlling the GUI """
 class FormMain(QMainWindow, Ui_MainWindow):
 	def __init__(self, parent=None):
@@ -147,6 +155,8 @@ class FormMain(QMainWindow, Ui_MainWindow):
 		self.main_thread  = Thread(target=self._palpation_routine)
 		self.main_thread.daemon = True
 
+		# Redirect console output to textBrowser
+		sys.stdout = port(self.textBrowser)
 		# Create TensorFlow session and load pretrained model
 		self.load_session()
 
