@@ -16,7 +16,7 @@ def detect_shape(sess, model, filepath):
 	SHAPE = {v:k for k,v in LABELS.items()}
 	# 'filepath' is the path to the PCD file
 	path = os.path.relpath(filepath, '../scripts')
-	subprocess.check_call(['python', 'extract_pov.py', path, '.temp'], cwd='../scripts')
+	subprocess.check_call(['python3', 'extract_pov.py', path, '.temp'], cwd='../scripts')
 	# Walk through the data directory
 	chunk = None
 	cntr = 0
@@ -60,4 +60,4 @@ if __name__ == '__main__':
 			saver.restore(sess, tf.train.latest_checkpoint(sys.argv[1]))
 			detect_shape(sess, model, sys.argv[2])
 	else:
-		print("Usage:\npython detect.py [MODEL_LOAD_DIR] [POINT_CLOUD]")
+		print("Usage:\npython3 detect.py [MODEL_LOAD_DIR] [POINT_CLOUD]")

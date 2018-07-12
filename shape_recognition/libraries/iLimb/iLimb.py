@@ -25,6 +25,7 @@ import numpy as np
 import time
 from threading import Thread
 from serial import Serial
+from collections import deque
 #------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 # DICTIONARY CLASS
@@ -72,7 +73,7 @@ class iLimbController:
 		#FEEDBACK CONTROL BASED ON TACTILE SENSORS
 		self.controlPos = 0
 		self.controlSampleCounter = 0
-		self.forceList = [[] for k in range(5)]
+		self.forceList = [deque([], maxlen=100) for k in range(5)]
 		self.ControlPowerGraspFinished = False
 		self.ControlPinchTouchFinished = False
 		#-----------------------------------------------------------------------
@@ -105,7 +106,7 @@ class iLimbController:
 	def resetControl(self):
 		self.controlPos = 0
 		self.controlSampleCounter = 0
-		self.forceList = [[] for k in range(5)]
+		# self.forceList = [deque([], maxlen=20) for k in range(5)]
 		self.ControlPowerGraspFinished = False
 		self.ControlPinchTouchFinished = False
 
@@ -184,35 +185,44 @@ class iLimbController:
 		flagPower = [False]*len(fingerArray)
 		ftouch = [] #which fingers to move for touch
 		fpower = [] #which fingers to move for power grasp
-		bgVal = [] #list to store the 'background' values of taxels
-
+		expected = [] #expected values (average over last window)
 		#add the force frame from the tactile array
+		# for k in range(len(fingerArray)):
+		# 	self.forceList[k].append(tactileArray[fingerArray[k][1]])
 		for k in range(len(fingerArray)):
+			expected.append(np.mean(np.stack(self.forceList[k]), axis=0) if len(self.forceList[k]) > 0 else tactileArray[fingerArray[k][1]])
 			self.forceList[k].append(tactileArray[fingerArray[k][1]])
-			bgVal.append(np.mean(np.stack(self.forceList[k])))
 	   
 		if self.controlSampleCounter >= numberSamples:
 			if self.ControlPinchTouchFinished is False:
 				for k in range(len(fingerArray)):
-					#find the maximum values for each frame
-					maximumValues.append([np.max(x) for x in self.forceList[k]])
-					#find which frame had the maximum value
-					idxFrameMax = np.where(maximumValues[k] == np.max(maximumValues[k]))
-					#find which taxel had the maximum value
-					idxTaxel = np.where(self.forceList[k][idxFrameMax[0][0]] == np.max(maximumValues[k]))
-					#create a vector with the values for this taxel in every frame
-					taxelValues = [x[idxTaxel[0][0]][idxTaxel[1][0]] for x in self.forceList[k]]
-					#print(taxelValues) #debugging
-					#take the average of this taxel over all frames
-					meanv.append(np.mean(taxelValues))
-					#check if the finger has made contact
-					if meanv[k] - bgVal[k] > fingerArray[k][2]:
+					# #find the maximum values for each frame
+					# maximumValues.append([np.max(x) for x in self.forceList[k]])
+					# #find which frame had the maximum value
+					# idxFrameMax = np.where(maximumValues[k] == np.max(maximumValues[k]))
+					# #find which taxel had the maximum value
+					# idxTaxel = np.where(self.forceList[k][idxFrameMax[0][0]] == np.max(maximumValues[k]))
+					# #create a vector with the values for this taxel in every frame
+					# taxelValues = [x[idxTaxel[0][0]][idxTaxel[1][0]] for x in self.forceList[k]]
+					# #print(taxelValues) #debugging
+					# #take the average of this taxel over all frames
+					# meanv.append(np.mean(taxelValues))
+					# #check if the finger has made contact
+					# if meanv[k] - bgVal[k] > fingerArray[k][2]:
+					# 	flagTouch[k] = True
+					# 	#ftouch.append(fingerArray[k][0])
+					# else:
+					# 	ftouch.append(fingerArray[k][0])
+
+				# print('mean force', meanv)
+					
+					print(np.max(tactileArray[fingerArray[k][1]] - expected[k]), len(self.forceList[k]))
+					if np.max(tactileArray[fingerArray[k][1]] - expected[k]) > fingerArray[k][2]:
 						flagTouch[k] = True
-						#ftouch.append(fingerArray[k][0])
 					else:
 						ftouch.append(fingerArray[k][0])
+					
 
-				print('mean force', meanv)
 
 				#not all fingers have made contact
 				if flagTouch.count(True) < len(fingerArray):
@@ -223,7 +233,7 @@ class iLimbController:
 					self.ControlPinchTouchFinished = True
 				
 			self.controlSampleCounter = 0
-			self.forceList = [[] for x in range(5)]
+			# self.forceList = [[] for x in range(5)]
 			time.sleep(0.04)                
 		else:
 			self.controlSampleCounter += 1

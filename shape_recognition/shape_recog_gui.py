@@ -115,6 +115,7 @@ class Shape_Recognition:
 
                 # Figures 
                 self.pov_figures = [Figure() for _ in range(6)]
+                
                 self.view_0 = Canvas(top)
                 self.view_0.place(relx=0.01, rely=0.01, relheight=0.26, relwidth=0.23)
                 self.view_0.configure(borderwidth="2")

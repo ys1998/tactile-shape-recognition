@@ -42,7 +42,7 @@ Ui_MainWindow, QMainWindow = loadUiType('formMain_gui.ui')
 
 # Constants
 MAPPING = {'index':0, 'thumb':1}
-THRESHOLD = {'index':0.08, 'thumb':0.08}
+THRESHOLD = {'index':0.01, 'thumb':0.01}
 # iLimb dimensions (mm)
 IDX_TO_BASE = 185 + 40
 THB_TO_BASE = 105 + 30
@@ -94,7 +94,7 @@ class FormMain(QMainWindow, Ui_MainWindow):
 
 		# For tactile values
 		self.ser = None
-		self.dataQueue = deque([])
+		self.dataQueue = deque([], maxlen=1000)
 		self.receiveThread = ThreadHandler(_worker=self.receive)
 		self.MIN = np.array([0,0])
 		self.MAX = np.array([4096, 4096])
@@ -157,6 +157,7 @@ class FormMain(QMainWindow, Ui_MainWindow):
 
 		# Redirect console output to textBrowser
 		sys.stdout = port(self.textBrowser)
+
 		# Create TensorFlow session and load pretrained model
 		self.load_session()
 
@@ -254,7 +255,7 @@ class FormMain(QMainWindow, Ui_MainWindow):
 
 				# Self-touching condition
 				# Can be modified later
-				if self.iLimb.controlPos > 150 and not touched_once:
+				if self.iLimb.controlPos > 200 and not touched_once:
 					return False
 				elif self.iLimb.controlPos > 200 and touched_once:
 					for i in range(len(fingerArray)):
