@@ -8,21 +8,23 @@ Install `PCL-1.8` (Point Cloud Library) from source by following the instruction
 
 Install necessary `Python3` modules by executing this commands
 ```bash
-sudo pip3 install tensorflow tensorflow-gpu scipy lzf seaborn
+sudo pip3 install numpy tensorflow tensorflow-gpu scipy lzf seaborn
 sudo apt install python-skimage # for Ubuntu 16.04
+# If the above command doesn't work, you may try this
+# sudo pip3 install skimage
 ```
 
 Assuming that `cmake` has already been installed, build the `extract_pov` binary 
 ```bash
 cd scripts
 mkdir build && cd build
-cmake .. && make
+cmake .. && make && mv extract_pov ../
 ```
 
 ## Execution
-`cd` into the `GUI` folder and execute the following command
+`cd` into the `GUI` folder and execute the following command (assuming `PyQt5` has been installed and set up)
 ```
 python3 formMain.py
 ```
 ## References
-The research papers referred for this project can be found [here](references/)
+The research papers referred for this project can be found [here](references/).
