@@ -24,3 +24,5 @@ cmake .. && make
 ```
 python3 formMain.py
 ```
+## References
+The research papers referred for this project can be found [here](references/)
